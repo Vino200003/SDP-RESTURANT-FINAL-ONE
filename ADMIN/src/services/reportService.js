@@ -149,8 +149,8 @@ export const getReservationsReport = async (startDate, endDate, aggregation = 'd
   }
 };
 
-// Export report as PDF - Fixed to handle non-number revenue values
-export const exportAsPDF = (reportData, reportType, dateRange) => {
+// Export report as PDF - Updated to include charts
+export const exportAsPDF = (reportData, reportType, dateRange, chartRefs) => {
   try {
     // Create new jsPDF instance
     const doc = new jsPDF();
@@ -195,7 +195,57 @@ export const exportAsPDF = (reportData, reportType, dateRange) => {
     
     let currentY = doc.lastAutoTable.finalY + 15;
     
-    // Add sales timeline safely
+    // Add charts if provided
+    if (chartRefs && chartRefs.salesChart && chartRefs.salesChart.current) {
+      try {
+        // Convert sales chart to image
+        const salesChartImg = chartRefs.salesChart.current.toDataURL('image/png');
+        doc.setFontSize(14);
+        doc.text('Sales Chart', 14, currentY);
+        
+        // Add sales chart image to PDF
+        doc.addImage(
+          salesChartImg, 
+          'PNG', 
+          15, // x position
+          currentY + 5, // y position
+          180, // width
+          90  // height
+        );
+        
+        currentY += 100; // Move down for next section
+        
+        // Add category chart if available
+        if (chartRefs.categoryChart && chartRefs.categoryChart.current) {
+          const categoryChartImg = chartRefs.categoryChart.current.toDataURL('image/png');
+          doc.setFontSize(14);
+          doc.text('Revenue by Order Type', 14, currentY);
+          
+          // Add category chart image to PDF
+          doc.addImage(
+            categoryChartImg, 
+            'PNG', 
+            50, // x position (centered)
+            currentY + 5, // y position
+            100, // width
+            100 // height
+          );
+          
+          currentY += 110; // Move down for next section
+        }
+        
+        // Add page break if needed
+        if (currentY > 250) {
+          doc.addPage();
+          currentY = 20;
+        }
+      } catch (chartErr) {
+        console.error('Error adding charts to PDF:', chartErr);
+        // Continue without charts if there's an error
+      }
+    }
+    
+    // Add sales timeline if we have space, or on a new page
     if (reportData.salesTimeline && reportData.salesTimeline.length > 0) {
       doc.setFontSize(14);
       doc.text('Sales Timeline', 14, currentY);
