@@ -131,21 +131,6 @@ const Login = ({ onLogin }) => {
           <p className="support-contact">Support: <a href="tel:+1234567890">123-456-7890</a></p>
         </div>
         
-        <div className="demo-credentials">
-          <p className="demo-title">Demo Credentials:</p>
-          <div className="credential-box">
-            <div className="credential-item">
-              <strong>Kitchen Staff:</strong> 
-              <span>Email: kitchen@restaurant.com</span>
-              <span>Password: kitchen123</span>
-            </div>
-            <div className="credential-item">
-              <strong>Delivery Staff:</strong> 
-              <span>Email: delivery@restaurant.com</span>
-              <span>Password: delivery123</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -7,7 +7,8 @@ import InventoryManagement from './pages/InventoryManagement';
 import Login from './pages/Login';
 import StaffManagement from './pages/StaffManagement';
 import DeliveryManagement from './pages/DeliveryManagement';
-import AdminSettings from './pages/AdminSettings'; // Add this import
+import AdminSettings from './pages/AdminSettings'; 
+import Reports from './pages/Reports';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import "./App.css";
 
@@ -31,8 +32,8 @@ function App() {
           <Route path="/inventory" element={<InventoryManagement />} />
           <Route path="/staff" element={<StaffManagement />} />
           <Route path="/delivery" element={<DeliveryManagement />} />
-          <Route path="/settings" element={<AdminSettings />} /> {/* Add this route */}
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="/settings" element={<AdminSettings />} />
+          <Route path="/reports" element={<Reports />} />
         </Routes>
       </Router>
     </AuthProvider>

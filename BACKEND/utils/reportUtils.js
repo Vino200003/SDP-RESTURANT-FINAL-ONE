@@ -79,6 +79,86 @@ exports.formatDateTime = (dateString) => {
   });
 };
 
+// Format a date string to a human-readable format
+exports.formatDateTime = (dateString) => {
+  const date = new Date(dateString);
+  
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Format month-year string (YYYY-MM) to a more readable format
+exports.formatMonthYear = (monthYearString) => {
+  const [year, month] = monthYearString.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long'
+  });
+};
+
+// Calculate percentage change between two values
+exports.calculatePercentageChange = (current, previous) => {
+  if (previous === 0) {
+    return current > 0 ? 100 : 0;
+  }
+  
+  return ((current - previous) / previous) * 100;
+};
+
+// Generate date range for reports
+exports.generateDateRange = (startDate, endDate, aggregation = 'daily') => {
+  const dates = [];
+  let current = new Date(startDate);
+  const end = new Date(endDate);
+  
+  if (aggregation === 'daily') {
+    while (current <= end) {
+      dates.push(current.toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+  } else if (aggregation === 'weekly') {
+    // For weekly, we need to get the first day of each week
+    while (current <= end) {
+      // Get the first day of the week (Sunday)
+      const firstDayOfWeek = new Date(current);
+      firstDayOfWeek.setDate(current.getDate() - current.getDay());
+      
+      dates.push(firstDayOfWeek.toISOString().split('T')[0]);
+      
+      // Move to next week
+      current.setDate(current.getDate() + 7);
+    }
+  } else if (aggregation === 'monthly') {
+    while (current <= end) {
+      // Get the first day of the month
+      const firstDayOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+      
+      dates.push(firstDayOfMonth.toISOString().split('T')[0]);
+      
+      // Move to next month
+      current.setMonth(current.getMonth() + 1);
+    }
+  }
+  
+  return dates;
+};
+
+// Format currency amount
+exports.formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'LKR',
+    minimumFractionDigits: 2
+  }).format(amount);
+};
+
 // Validate menu items in an order
 exports.validateOrderItems = async (orderItems, MenuItem) => {
   if (!orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {

@@ -17,6 +17,7 @@ const deliveryRoutes = require('./routes/deliveryRoutes'); // Import the deliver
 const staffRoutes = require('./routes/staffRoutes'); // Ensure this is imported
 const kitchenRoutes = require('./routes/kitchenRoutes'); // Import the kitchen routes
 const staffProfileRoutes = require('./routes/staffProfileRoutes'); // Import staff profile routes
+const reportRoutes = require('./routes/reportRoutes'); // Import report routes
 
 // Apply middleware
 app.use(cors());
@@ -33,6 +34,7 @@ app.use('/api/delivery', deliveryRoutes); // Add the delivery routes to the expr
 app.use('/api/staff', staffRoutes); // Make sure this is registered
 app.use('/api/kitchen', kitchenRoutes); // Kitchen routes
 app.use('/api/staff/profile', staffProfileRoutes); // Use staff profile routes
+app.use('/api/admin/reports', reportRoutes); // Use report routes
 
 console.log('User routes initialized');
 console.log('Menu routes initialized');
@@ -40,6 +42,7 @@ console.log('Reservation routes initialized');
 console.log('Admin routes initialized'); // Add this log
 console.log('Delivery zone routes initialized'); // Add this log
 console.log('Delivery routes initialized'); // Add this log
+console.log('Report routes initialized'); // Log for report routes
 
 // Add more detailed logging for server startup
 app.listen(port, () => {

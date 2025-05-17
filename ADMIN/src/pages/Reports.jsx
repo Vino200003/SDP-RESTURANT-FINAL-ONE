@@ -1,209 +1,424 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Form, Table, Alert } from 'react-bootstrap';
-import { FaChartLine, FaFileAlt, FaMoneyBillWave, FaUtensils, FaUsers } from 'react-icons/fa';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { useState, useEffect } from 'react';
+import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
+import * as reportService from '../services/reportService';
+import '../styles/Reports.css';
 
-const Reports = () => {
-  const [reportType, setReportType] = useState('sales');
-  const [dateRange, setDateRange] = useState('week');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+function Reports() {
+  // State for date range
+  const [dateRange, setDateRange] = useState({
+    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  });
+  
+  // State for report data
   const [reportData, setReportData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  
+  // State for report type
+  const [reportType, setReportType] = useState('sales');
+  
+  // State for aggregation
+  const [aggregation, setAggregation] = useState('daily');
+  
+  // Fetch report data when date range or report type changes
   useEffect(() => {
-    // Set default date range when component mounts
-    const today = new Date();
-    const lastWeek = new Date();
-    lastWeek.setDate(today.getDate() - 7);
-    
-    setEndDate(today.toISOString().split('T')[0]);
-    setStartDate(lastWeek.toISOString().split('T')[0]);
-  }, []);
-
-  const handleGenerateReport = async () => {
-    setLoading(true);
-    setError(null);
-    
+    fetchReportData();
+  }, [dateRange, reportType, aggregation]);
+  
+  const fetchReportData = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admin/reports`, {
-        params: {
-          type: reportType,
-          startDate,
-          endDate
-        },
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
+      setIsLoading(true);
+      setError(null);
       
-      setReportData(response.data);
+      // Fetch data based on report type
+      let data;
+      switch (reportType) {
+        case 'sales':
+          data = await reportService.getSalesReport(dateRange.startDate, dateRange.endDate, aggregation);
+          break;
+        case 'menu':
+          data = await reportService.getMenuItemsReport(dateRange.startDate, dateRange.endDate);
+          break;
+        case 'reservations':
+          data = await reportService.getReservationsReport(dateRange.startDate, dateRange.endDate, aggregation);
+          break;
+        default:
+          data = await reportService.getSalesReport(dateRange.startDate, dateRange.endDate, aggregation);
+      }
+      
+      // Ensure data has the expected properties
+      ensureDataFormat(data);
+      
+      setReportData(data);
     } catch (err) {
       console.error('Error fetching report data:', err);
-      setError('Failed to generate report. Please try again.');
+      setError('Failed to load report data. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
-
-  const handleDateRangeChange = (range) => {
-    setDateRange(range);
-    const today = new Date();
-    let startDateValue = new Date();
+  
+  // Ensure the data has the expected format
+  const ensureDataFormat = (data) => {
+    // Make sure salesTimeline exists
+    if (!data.salesTimeline && data.timeline) {
+      data.salesTimeline = data.timeline;
+    } else if (!data.salesTimeline) {
+      data.salesTimeline = [];
+    }
     
-    switch(range) {
-      case 'today':
-        startDateValue = today;
+    // Make sure totalSales and totalOrders exist
+    data.totalSales = data.totalSales || 0;
+    data.totalOrders = data.totalOrders || 0;
+    
+    // Make sure topItems exists if it doesn't
+    if (!data.topItems) {
+      data.topItems = [];
+    }
+  };
+  
+  const handleDateRangeChange = (e) => {
+    const { name, value } = e.target;
+    setDateRange(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleExportReport = (format) => {
+    if (!reportData) return;
+    
+    switch (format) {
+      case 'pdf':
+        reportService.exportAsPDF(reportData, reportType, dateRange);
         break;
-      case 'week':
-        startDateValue.setDate(today.getDate() - 7);
-        break;
-      case 'month':
-        startDateValue.setMonth(today.getMonth() - 1);
-        break;
-      case 'year':
-        startDateValue.setFullYear(today.getFullYear() - 1);
+      case 'csv':
+        reportService.exportAsCSV(reportData, reportType);
         break;
       default:
-        startDateValue.setDate(today.getDate() - 7);
+        console.error('Unsupported export format:', format);
+    }
+  };
+  
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 2
+    }).format(amount);
+  };
+  
+  // Calculate percentage change
+  const getPercentageChange = (current, previous) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+  
+  // Function to format date (strip any time component)
+  const formatDateOnly = (dateString) => {
+    if (!dateString) return '';
+    
+    // Handle date ranges for weekly reports (e.g., "2023-01-01 - 2023-01-07")
+    if (typeof dateString === 'string' && dateString.includes(' - ')) {
+      const [startDate, endDate] = dateString.split(' - ');
+      return `${formatDateOnly(startDate)} - ${formatDateOnly(endDate)}`;
     }
     
-    setStartDate(startDateValue.toISOString().split('T')[0]);
-    setEndDate(today.toISOString().split('T')[0]);
+    // If it's already a date-only string (YYYY-MM-DD), return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      return dateString;
+    }
+    
+    // For monthly reports that might be formatted as "January 2023"
+    if (/^[A-Za-z]+ \d{4}$/.test(dateString)) {
+      return dateString;
+    }
+    
+    // Otherwise, convert to Date object and extract date part
+    try {
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    } catch (e) {
+      // If anything goes wrong, return the original string
+      return dateString;
+    }
   };
-
-  const renderReportContent = () => {
-    if (loading) return <Alert variant="info">Loading report data...</Alert>;
-    if (error) return <Alert variant="danger">{error}</Alert>;
-    if (!reportData) return <Alert variant="secondary">Select report options and click "Generate Report" to view data</Alert>;
-
-    // Placeholder for actual report rendering
-    return (
-      <div className="mt-4">
-        <h4>Report Results</h4>
-        <Table striped bordered hover responsive>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Total</th>
-              {reportType === 'sales' && <th>Orders</th>}
-              {reportType === 'inventory' && <th>Items</th>}
-              {reportType === 'customer' && <th>Customers</th>}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan="3" className="text-center">Sample data will be displayed here</td>
-            </tr>
-          </tbody>
-        </Table>
-      </div>
-    );
-  };
-
+  
   return (
-    <Container fluid className="p-4">
-      <Row className="mb-4">
-        <Col>
-          <h2><FaChartLine className="me-2" />Reports Dashboard</h2>
-          <p className="text-muted">Generate and analyze restaurant reports</p>
-        </Col>
-      </Row>
-
-      <Row>
-        <Col md={3}>
-          <Card className="mb-4">
-            <Card.Header>Report Options</Card.Header>
-            <Card.Body>
-              <Form>
-                <Form.Group className="mb-3">
-                  <Form.Label>Report Type</Form.Label>
-                  <Form.Select 
-                    value={reportType} 
-                    onChange={(e) => setReportType(e.target.value)}
-                  >
-                    <option value="sales">Sales Report</option>
-                    <option value="inventory">Inventory Report</option>
-                    <option value="customer">Customer Report</option>
-                    <option value="menu">Menu Performance</option>
-                  </Form.Select>
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Date Range</Form.Label>
-                  <Form.Select 
-                    value={dateRange} 
-                    onChange={(e) => handleDateRangeChange(e.target.value)}
-                  >
-                    <option value="today">Today</option>
-                    <option value="week">Last 7 Days</option>
-                    <option value="month">Last 30 Days</option>
-                    <option value="year">Last Year</option>
-                    <option value="custom">Custom Range</option>
-                  </Form.Select>
-                </Form.Group>
-
-                {dateRange === 'custom' && (
-                  <>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Start Date</Form.Label>
-                      <Form.Control 
-                        type="date" 
-                        value={startDate} 
-                        onChange={(e) => setStartDate(e.target.value)} 
-                      />
-                    </Form.Group>
-                    <Form.Group className="mb-3">
-                      <Form.Label>End Date</Form.Label>
-                      <Form.Control 
-                        type="date" 
-                        value={endDate} 
-                        onChange={(e) => setEndDate(e.target.value)} 
-                      />
-                    </Form.Group>
-                  </>
-                )}
-
-                <Button 
-                  variant="primary" 
-                  onClick={handleGenerateReport}
-                  disabled={loading}
-                  className="w-100"
-                >
-                  {loading ? 'Generating...' : 'Generate Report'}
-                </Button>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={9}>
-          <Card>
-            <Card.Header>
-              <Row>
-                <Col>
-                  {reportType === 'sales' && <><FaMoneyBillWave className="me-2" />Sales Report</>}
-                  {reportType === 'inventory' && <><FaUtensils className="me-2" />Inventory Report</>}
-                  {reportType === 'customer' && <><FaUsers className="me-2" />Customer Report</>}
-                  {reportType === 'menu' && <><FaFileAlt className="me-2" />Menu Performance</>}
-                </Col>
-                <Col className="text-end">
-                  <small className="text-muted">
-                    {startDate} to {endDate}
-                  </small>
-                </Col>
-              </Row>
-            </Card.Header>
-            <Card.Body>
-              {renderReportContent()}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <div className="dashboard-container">
+      <Sidebar />
+      <main className="dashboard-content">
+        <Header title="Reports" />
+        
+        {error && (
+          <div className="error-banner">
+            <p>{error}</p>
+            <button onClick={fetchReportData}>Retry</button>
+          </div>
+        )}
+        
+        <div className="reports-controls">
+          <div className="report-type-selector">
+            <label>Report Type:</label>
+            <select 
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+            >
+              <option value="sales">Sales Report</option>
+              <option value="menu">Menu Items Report</option>
+              <option value="reservations">Reservations Report</option>
+            </select>
+          </div>
+          
+          <div className="date-range-controls">
+            <div className="date-input-group">
+              <label>Start Date:</label>
+              <input 
+                type="date"
+                name="startDate"
+                value={dateRange.startDate}
+                onChange={handleDateRangeChange}
+                max={dateRange.endDate}
+              />
+            </div>
+            <div className="date-input-group">
+              <label>End Date:</label>
+              <input 
+                type="date"
+                name="endDate"
+                value={dateRange.endDate}
+                onChange={handleDateRangeChange}
+                min={dateRange.startDate}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+          
+          <div className="aggregation-controls">
+            <label>Group By:</label>
+            <select 
+              value={aggregation}
+              onChange={(e) => setAggregation(e.target.value)}
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          
+          <div className="export-controls">
+            <button 
+              className="export-btn pdf"
+              onClick={() => handleExportReport('pdf')}
+              disabled={!reportData || isLoading}
+            >
+              Export as PDF
+            </button>
+            <button 
+              className="export-btn csv"
+              onClick={() => handleExportReport('csv')}
+              disabled={!reportData || isLoading}
+            >
+              Export as CSV
+            </button>
+          </div>
+        </div>
+        
+        {isLoading ? (
+          <div className="loading-indicator">
+            <div className="spinner"></div>
+            <p>Loading report data...</p>
+          </div>
+        ) : reportData ? (
+          <div className="reports-content">
+            {/* Summary Stats Cards */}
+            <div className="summary-stats">
+              <div className="stat-card total-sales">
+                <h3>Total Sales</h3>
+                <p className="stat-number">{formatCurrency(reportData.totalSales)}</p>
+                <p className="stat-comparison">
+                  {reportData.previousPeriodSales !== undefined && (
+                    <>
+                      {getPercentageChange(reportData.totalSales, reportData.previousPeriodSales) > 0 ? (
+                        <span className="positive">↑ {getPercentageChange(reportData.totalSales, reportData.previousPeriodSales).toFixed(1)}%</span>
+                      ) : (
+                        <span className="negative">↓ {Math.abs(getPercentageChange(reportData.totalSales, reportData.previousPeriodSales)).toFixed(1)}%</span>
+                      )}
+                      {' from previous period'}
+                    </>
+                  )}
+                </p>
+              </div>
+              
+              <div className="stat-card total-orders">
+                <h3>Total Orders</h3>
+                <p className="stat-number">{reportData.totalOrders}</p>
+                <p className="stat-comparison">
+                  {reportData.previousPeriodOrders !== undefined && (
+                    <>
+                      {getPercentageChange(reportData.totalOrders, reportData.previousPeriodOrders) > 0 ? (
+                        <span className="positive">↑ {getPercentageChange(reportData.totalOrders, reportData.previousPeriodOrders).toFixed(1)}%</span>
+                      ) : (
+                        <span className="negative">↓ {Math.abs(getPercentageChange(reportData.totalOrders, reportData.previousPeriodOrders)).toFixed(1)}%</span>
+                      )}
+                      {' from previous period'}
+                    </>
+                  )}
+                </p>
+              </div>
+              
+              <div className="stat-card avg-order">
+                <h3>Avg. Order Value</h3>
+                <p className="stat-number">
+                  {reportData.totalOrders > 0 
+                    ? formatCurrency(reportData.totalSales / reportData.totalOrders) 
+                    : formatCurrency(0)
+                  }
+                </p>
+                <p className="stat-comparison">
+                  {reportData.previousPeriodSales !== undefined && reportData.previousPeriodOrders > 0 && (
+                    <>
+                      {getPercentageChange(
+                        reportData.totalOrders > 0 ? reportData.totalSales / reportData.totalOrders : 0,
+                        reportData.previousPeriodOrders > 0 ? reportData.previousPeriodSales / reportData.previousPeriodOrders : 0
+                      ) > 0 ? (
+                        <span className="positive">↑ {getPercentageChange(
+                          reportData.totalOrders > 0 ? reportData.totalSales / reportData.totalOrders : 0,
+                          reportData.previousPeriodOrders > 0 ? reportData.previousPeriodSales / reportData.previousPeriodOrders : 0
+                        ).toFixed(1)}%</span>
+                      ) : (
+                        <span className="negative">↓ {Math.abs(getPercentageChange(
+                          reportData.totalOrders > 0 ? reportData.totalSales / reportData.totalOrders : 0,
+                          reportData.previousPeriodOrders > 0 ? reportData.previousPeriodSales / reportData.previousPeriodOrders : 0
+                        )).toFixed(1)}%</span>
+                      )}
+                      {' from previous period'}
+                    </>
+                  )}
+                </p>
+              </div>
+              
+              {reportType === 'reservations' && (
+                <div className="stat-card total-reservations">
+                  <h3>Total Reservations</h3>
+                  <p className="stat-number">{reportData.totalReservations}</p>
+                  <p className="stat-comparison">
+                    {reportData.previousPeriodReservations !== undefined && (
+                      <>
+                        {getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations) > 0 ? (
+                          <span className="positive">↑ {getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations).toFixed(1)}%</span>
+                        ) : (
+                          <span className="negative">↓ {Math.abs(getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations)).toFixed(1)}%</span>
+                        )}
+                        {' from previous period'}
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            {/* Top Selling Items Table */}
+            {reportData.topItems && reportData.topItems.length > 0 && (
+              <div className="top-items-section">
+                <h3>Top Selling Items</h3>
+                <div className="table-container">
+                  <table className="top-items-table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Item Name</th>
+                        <th>Category</th>
+                        <th>Quantity Sold</th>
+                        <th>Revenue</th>
+                        <th>Average Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.topItems.map((item, index) => (
+                        <tr key={item.menu_id || index}>
+                          <td>{index + 1}</td>
+                          <td>{item.item_name}</td>
+                          <td>{item.category || 'N/A'}</td>
+                          <td>{item.quantity}</td>
+                          <td>{formatCurrency(item.revenue)}</td>
+                          <td>{formatCurrency(item.revenue / item.quantity)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            
+            {/* Daily Breakdown Table */}
+            <div className="daily-breakdown-section">
+              <h3>Sales Breakdown</h3>
+              <div className="table-container">
+                <table className="sales-breakdown-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Orders</th>
+                      <th>Sales</th>
+                      <th>Avg. Order Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData.salesTimeline.map((day, index) => (
+                      <tr key={index}>
+                        <td>{formatDateOnly(day.date)}</td>
+                        <td>{day.orders}</td>
+                        <td>{formatCurrency(day.amount)}</td>
+                        <td>{day.orders > 0 ? formatCurrency(day.amount / day.orders) : formatCurrency(0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            {/* Add Revenue by Order Type Section */}
+            {reportData.revenueByType && Object.keys(reportData.revenueByType).length > 0 && (
+              <div className="order-type-section">
+                <h3>Revenue by Order Type</h3>
+                <div className="table-container">
+                  <table className="order-type-table">
+                    <thead>
+                      <tr>
+                        <th>Order Type</th>
+                        <th>Revenue</th>
+                        <th>Percentage</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(reportData.revenueByType).map(([type, revenue], index) => {
+                        const percentage = (revenue / reportData.totalSales * 100).toFixed(1);
+                        return (
+                          <tr key={index}>
+                            <td>{type}</td>
+                            <td>{formatCurrency(revenue)}</td>
+                            <td>{percentage}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="no-data-message">
+            <p>Select a date range and report type to view data.</p>
+          </div>
+        )}
+      </main>
+    </div>
   );
-};
+}
 
 export default Reports;

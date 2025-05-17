@@ -21,6 +21,59 @@ function Sidebar() {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
+  const navItems = [
+    {
+      name: 'Dashboard',
+      path: '/dashboard',
+      icon: '📊'
+    },
+    {
+      name: 'Menu Management',
+      path: '/menu-management',
+      icon: '🍽️'
+    },
+    {
+      name: 'Orders',
+      path: '/orders',
+      icon: '🛒'
+    },
+    {
+      name: 'Table Reservations',
+      path: '/reservations',
+      icon: '📅'
+    },
+    {
+      name: 'Inventory',
+      path: '/inventory',
+      icon: '📦'
+    },
+    {
+      name: 'Staff Management',
+      path: '/staff',
+      icon: '👥'
+    },
+    {
+      name: 'Attendance',
+      path: '/attendance',
+      icon: '⏱️'
+    },
+    {
+      name: 'Delivery Management',
+      path: '/delivery',
+      icon: '🚚'
+    },
+    {
+      name: 'Reports',
+      path: '/reports',
+      icon: '📊'
+    },
+    {
+      name: 'Admin Settings',
+      path: '/settings',
+      icon: '⚙️'
+    }
+  ];
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -29,61 +82,14 @@ function Sidebar() {
       </div>
       <nav className="sidebar-nav">
         <ul>
-          <li>
-            <Link to="/dashboard" className={`nav-link ${isRouteActive('/dashboard') ? 'active' : ''}`}>
-              <span className="icon">📊</span>
-              Dashboard
-            </Link>
-          </li>
-          <li>
-            <Link to="/menu-management" className={`nav-link ${isRouteActive('/menu-management') ? 'active' : ''}`}>
-              <span className="icon">🍽️</span>
-              Menu Management
-            </Link>
-          </li>
-          <li>
-            <Link to="/orders" className={`nav-link ${isRouteActive('/orders') ? 'active' : ''}`}>
-              <span className="icon">🛒</span>
-              Orders
-            </Link>
-          </li>
-          
-          <li>
-            <Link to="/reservations" className={`nav-link ${isRouteActive('/reservations') ? 'active' : ''}`}>
-              <span className="icon">📅</span>
-              Table Reservations
-            </Link>
-          </li>
-          <li>
-            <Link to="/inventory" className={`nav-link ${isRouteActive('/inventory') ? 'active' : ''}`}>
-              <span className="icon">📦</span>
-              Inventory
-            </Link>
-          </li>
-          <li>
-            <Link to="/staff" className={`nav-link ${isRouteActive('/staff') ? 'active' : ''}`}>
-              <span className="icon">👥</span>
-              Staff Management
-            </Link>
-          </li>
-          <li>
-            <Link to="/attendance" className={`nav-link ${isRouteActive('/attendance') ? 'active' : ''}`}>
-              <span className="icon">⏱️</span>
-              Attendance
-            </Link>
-          </li>
-          <li>
-            <Link to="/delivery" className={`nav-link ${isRouteActive('/delivery') ? 'active' : ''}`}>
-              <span className="icon">🚚</span>
-              Delivery Management
-            </Link>
-          </li>
-          <li>
-            <Link to="/settings" className={`nav-link ${isRouteActive('/settings') ? 'active' : ''}`}>
-              <span className="icon">⚙️</span>
-              Admin Settings
-            </Link>
-          </li>
+          {navItems.map((item) => (
+            <li key={item.path}>
+              <Link to={item.path} className={`nav-link ${isRouteActive(item.path) ? 'active' : ''}`}>
+                <span className="icon">{item.icon}</span>
+                {item.name}
+              </Link>
+            </li>
+          ))}
         </ul>
       </nav>
       <div className="sidebar-footer">
