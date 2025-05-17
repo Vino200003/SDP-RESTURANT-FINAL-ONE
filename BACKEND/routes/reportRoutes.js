@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
+const reservationReportController = require('../controllers/reservationReportController');
 const { verifyAdminToken } = require('../middleware/authMiddleware');
 
 // Protected admin routes
@@ -21,5 +22,8 @@ router.get('/menu-items/top-selling', reportController.getTopSellingItems);
 router.get('/daily', reportController.getDailyReport);
 router.get('/weekly', reportController.getWeeklyReport);
 router.get('/monthly', reportController.getMonthlyReport);
+
+// Reservation reports
+router.get('/reservations', reservationReportController.getReservationsReport);
 
 module.exports = router;

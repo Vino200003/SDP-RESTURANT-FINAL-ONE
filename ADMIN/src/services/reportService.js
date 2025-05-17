@@ -127,7 +127,6 @@ export const getReservationsReport = async (startDate, endDate, aggregation = 'd
       aggregation
     });
     
-    // Note: If you don't have a reservations report endpoint yet, this will fall through to the mock data
     const response = await fetch(`${API_URL}/admin/reports/reservations?${queryParams}`, {
       method: 'GET',
       headers: {
@@ -137,15 +136,16 @@ export const getReservationsReport = async (startDate, endDate, aggregation = 'd
     });
     
     if (!response.ok) {
-      throw new Error('Failed to fetch reservations report');
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch reservations report');
     }
     
     const data = await response.json();
-    return cleanTimelineData(data);
+    return data;
   } catch (error) {
     console.error('Error fetching reservations report:', error);
-    // Return mock data in case of error (for development)
-    return cleanTimelineData(getMockReservationsReportData(startDate, endDate, aggregation));
+    // Return mock data for development
+    return getMockReservationsReportData(startDate, endDate, aggregation);
   }
 };
 
@@ -169,22 +169,30 @@ export const exportAsPDF = (reportData, reportType, dateRange, chartRefs) => {
     doc.setFontSize(14);
     doc.text('Summary', 14, 45);
     
-    // Safely format values to avoid NaN or undefined
-    const totalSales = typeof reportData.totalSales === 'number' ? reportData.totalSales.toFixed(2) : '0.00';
-    const totalOrders = reportData.totalOrders || 0;
-    const avgOrderValue = totalOrders > 0 ? (reportData.totalSales / totalOrders).toFixed(2) : '0.00';
+    // Format summary data based on report type
+    let summaryData;
     
-    const summaryData = [
-      ['Total Sales', `Rs. ${totalSales}`],
-      ['Total Orders', `${totalOrders}`],
-      ['Average Order Value', `Rs. ${avgOrderValue}`]
-    ];
-    
-    if (reportType === 'reservations' && reportData.totalReservations !== undefined) {
-      summaryData.push(['Total Reservations', `${reportData.totalReservations}`]);
+    if (reportType === 'reservations') {
+      // For reservations, only show reservation-specific metrics
+      summaryData = [
+        ['Total Reservations', `${reportData.totalReservations || 0}`],
+        ['Avg. Daily Reservations', `${(reportData.averageReservationsPerDay || 0).toFixed(1)}`],
+        ['Period Duration', `${reportData.period?.durationDays || 0} days`]
+      ];
+    } else {
+      // For other reports, use existing summary format with sales data
+      const totalSales = typeof reportData.totalSales === 'number' ? reportData.totalSales.toFixed(2) : '0.00';
+      const totalOrders = reportData.totalOrders || 0;
+      const avgOrderValue = totalOrders > 0 ? (reportData.totalSales / totalOrders).toFixed(2) : '0.00';
+      
+      summaryData = [
+        ['Total Sales', `Rs. ${totalSales}`],
+        ['Total Orders', `${totalOrders}`],
+        ['Average Order Value', `Rs. ${avgOrderValue}`]
+      ];
     }
     
-    // Using autoTable correctly
+    // Add summary table
     autoTable(doc, {
       startY: 50,
       head: [['Metric', 'Value']],
@@ -245,56 +253,103 @@ export const exportAsPDF = (reportData, reportType, dateRange, chartRefs) => {
       }
     }
     
-    // Add sales timeline if we have space, or on a new page
-    if (reportData.salesTimeline && reportData.salesTimeline.length > 0) {
-      doc.setFontSize(14);
-      doc.text('Sales Timeline', 14, currentY);
-      
-      const timelineHeaders = ['Date', 'Orders', 'Sales (Rs)'];
-      const timelineData = reportData.salesTimeline.map(day => [
-        // Ensure no time component in the date
-        day.date ? (day.date.includes(' ') ? day.date.split(' ')[0] : day.date) : '',
-        day.orders || 0,
-        (parseFloat(day.amount) || 0).toFixed(2)
-      ]);
-      
-      autoTable(doc, {
-        startY: currentY + 5,
-        head: [timelineHeaders],
-        body: timelineData,
-        theme: 'grid',
-        headStyles: { fillColor: [75, 75, 75] },
-        margin: { top: 10 }
-      });
-      
-      currentY = doc.lastAutoTable.finalY + 15;
-    }
-    
-    // Add top items if available
-    if (reportData.topItems && reportData.topItems.length > 0) {
-      doc.setFontSize(14);
-      doc.text('Top Selling Items', 14, currentY);
-      
-      const itemsHeaders = ['Item Name', 'Quantity', 'Revenue (Rs)'];
-      const itemsData = reportData.topItems.map(item => {
-        // Convert revenue to number safely before calling toFixed
-        const revenue = parseFloat(item.revenue) || 0;
+    // Customize the table data based on report type
+    if (reportType === 'reservations') {
+      if (reportData.salesTimeline && reportData.salesTimeline.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Reservations Timeline', 14, currentY);
         
-        return [
-          item.item_name || item.menu_name || '',
-          parseInt(item.quantity) || 0,
-          revenue.toFixed(2)
-        ];
-      });
+        const timelineHeaders = ['Date', 'Reservations'];
+        const timelineData = reportData.salesTimeline.map(day => [
+          day.date || '',
+          day.reservations || 0
+        ]);
+        
+        autoTable(doc, {
+          startY: currentY + 5,
+          head: [timelineHeaders],
+          body: timelineData,
+          theme: 'grid',
+          headStyles: { fillColor: [75, 75, 75] },
+          margin: { top: 10 }
+        });
+        
+        currentY = doc.lastAutoTable.finalY + 15;
+      }
       
-      autoTable(doc, {
-        startY: currentY + 5,
-        head: [itemsHeaders],
-        body: itemsData,
-        theme: 'grid',
-        headStyles: { fillColor: [75, 75, 75] },
-        margin: { top: 10 }
-      });
+      // Add table reservations if available
+      if (reportData.reservationsByTable && reportData.reservationsByTable.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Reservations by Table', 14, currentY);
+        
+        const tableHeaders = ['Table', 'Reservations', 'Percentage'];
+        const tableData = reportData.reservationsByTable.map(item => [
+          `Table ${item.table_no}`,
+          item.reservationCount,
+          `${((item.reservationCount / reportData.totalReservations) * 100).toFixed(1)}%`
+        ]);
+        
+        autoTable(doc, {
+          startY: currentY + 5,
+          head: [tableHeaders],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [75, 75, 75] },
+          margin: { top: 10 }
+        });
+      }
+    } else {
+      // For other report types, use existing code
+      if (reportData.salesTimeline && reportData.salesTimeline.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Sales Timeline', 14, currentY);
+        
+        const timelineHeaders = ['Date', 'Orders', 'Sales (Rs)'];
+        const timelineData = reportData.salesTimeline.map(day => [
+          // Ensure no time component in the date
+          day.date ? (day.date.includes(' ') ? day.date.split(' ')[0] : day.date) : '',
+          day.orders || 0,
+          (parseFloat(day.amount) || 0).toFixed(2)
+        ]);
+        
+        autoTable(doc, {
+          startY: currentY + 5,
+          head: [timelineHeaders],
+          body: timelineData,
+          theme: 'grid',
+          headStyles: { fillColor: [75, 75, 75] },
+          margin: { top: 10 }
+        });
+        
+        currentY = doc.lastAutoTable.finalY + 15;
+      }
+      
+      // Add top items if available
+      if (reportData.topItems && reportData.topItems.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Top Selling Items', 14, currentY);
+        
+        const itemsHeaders = ['Item Name', 'Quantity', 'Revenue (Rs)'];
+        const itemsData = reportData.topItems.map(item => {
+          // Convert revenue to number safely before calling toFixed
+          const revenue = parseFloat(item.revenue) || 0;
+          
+          return [
+            item.item_name || item.menu_name || '',
+            parseInt(item.quantity) || 0,
+            revenue.toFixed(2)
+          ];
+        });
+        
+        autoTable(doc, {
+          startY: currentY + 5,
+          head: [itemsHeaders],
+          body: itemsData,
+          theme: 'grid',
+          headStyles: { fillColor: [75, 75, 75] },
+          margin: { top: 10 }
+        });
+      }
     }
     
     // Save the PDF
@@ -458,43 +513,54 @@ function getMockMenuItemsReportData() {
   };
 }
 
+// Mock data function for reservations report - use until backend is ready
 function getMockReservationsReportData(startDate, endDate, aggregation) {
-  // Get base data from sales report
-  const baseData = getMockSalesReportData(startDate, endDate, aggregation);
+  // Generate days between start and end date
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const days = Math.round((end - start) / dayMs) + 1;
   
-  // Add reservation-specific data
-  const totalReservations = Math.floor(Math.random() * 300) + 100;
-  const previousPeriodReservations = totalReservations * (Math.random() * 0.4 + 0.8);
+  // Generate daily mock data
+  const timeline = [];
+  for (let i = 0; i < days; i++) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    const reservations = Math.floor(Math.random() * 15) + 5; // Random between 5-20
+    
+    timeline.push({
+      date: date.toISOString().split('T')[0],
+      reservations
+    });
+  }
   
-  // Modify timeline to include reservations count
-  const reservationsTimeline = baseData.salesTimeline.map(day => ({
-    ...day,
-    reservations: Math.floor(Math.random() * 20) + 5
-  }));
+  // Calculate totals
+  const totalReservations = timeline.reduce((sum, day) => sum + day.reservations, 0);
   
-  const tableUtilization = {
-    'Table 1 (2 seats)': 85,
-    'Table 2 (2 seats)': 78,
-    'Table 3 (4 seats)': 92,
-    'Table 4 (4 seats)': 88,
-    'Table 5 (6 seats)': 65,
-    'Table 6 (8 seats)': 55
-  };
+  // Generate mock table distribution data
+  const reservationsByTable = [
+    { table_no: 1, reservationCount: Math.floor(Math.random() * 30) + 10 },
+    { table_no: 2, reservationCount: Math.floor(Math.random() * 30) + 10 },
+    { table_no: 3, reservationCount: Math.floor(Math.random() * 30) + 10 },
+    { table_no: 4, reservationCount: Math.floor(Math.random() * 30) + 10 },
+    { table_no: 5, reservationCount: Math.floor(Math.random() * 30) + 10 },
+    { table_no: 6, reservationCount: Math.floor(Math.random() * 30) + 10 }
+  ];
   
-  const timeSlotPopularity = {
-    '5:00 PM - 6:00 PM': 15,
-    '6:00 PM - 7:00 PM': 25,
-    '7:00 PM - 8:00 PM': 35,
-    '8:00 PM - 9:00 PM': 20,
-    '9:00 PM - 10:00 PM': 5
-  };
+  // Generate mock time of day distribution
+  const reservationsByTimeOfDay = [
+    { time_of_day: 'Morning (6AM-12PM)', reservationCount: Math.floor(Math.random() * 50) + 20 },
+    { time_of_day: 'Afternoon (12PM-5PM)', reservationCount: Math.floor(Math.random() * 80) + 40 },
+    { time_of_day: 'Evening (5PM-10PM)', reservationCount: Math.floor(Math.random() * 100) + 60 },
+    { time_of_day: 'Night (10PM-6AM)', reservationCount: Math.floor(Math.random() * 30) + 5 }
+  ];
   
   return {
-    ...baseData,
-    salesTimeline: reservationsTimeline,
     totalReservations,
-    previousPeriodReservations,
-    tableUtilization,
-    timeSlotPopularity
+    previousPeriodReservations: Math.floor(totalReservations * 0.9), // Mock 10% growth
+    averageReservationsPerDay: totalReservations / days,
+    salesTimeline: timeline,
+    reservationsByTable,
+    reservationsByTimeOfDay
   };
 }

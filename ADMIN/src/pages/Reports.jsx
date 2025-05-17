@@ -102,11 +102,7 @@ function Reports() {
     
     switch (format) {
       case 'pdf':
-        // Pass chart references to include charts in PDF
-        reportService.exportAsPDF(reportData, reportType, dateRange, {
-          salesChart: salesChartRef,
-          categoryChart: categoryChartRef
-        });
+        reportService.exportAsPDF(reportData, reportType, dateRange);
         break;
       case 'csv':
         reportService.exportAsCSV(reportData, reportType);
@@ -183,11 +179,17 @@ function Reports() {
     // Only initialize charts if we have data and DOM elements
     if (!reportData || !salesChartRef.current) return;
     
-    // Sales Chart
-    initSalesChart();
+    // Initialize the appropriate chart based on report type
+    if (reportType === 'sales') {
+      initSalesChart();
+    } else if (reportType === 'menu') {
+      // Handle menu report chart if needed
+    } else if (reportType === 'reservations') {
+      initReservationsChart();
+    }
     
-    // Category Chart (if revenue by type data is available)
-    if (reportData.revenueByType && categoryChartRef.current) {
+    // Initialize category chart for non-reservations reports
+    if (reportType === 'sales' && reportData.revenueByType && categoryChartRef.current) {
       initCategoryChart();
     }
   };
@@ -340,6 +342,156 @@ function Reports() {
     });
   };
   
+  // Initialize chart specifically for reservations report
+  const initReservationsChart = () => {
+    if (salesChartInstance.current) {
+      salesChartInstance.current.destroy();
+    }
+    
+    const ctx = salesChartRef.current.getContext('2d');
+    
+    salesChartInstance.current = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: reportData.salesTimeline.map(item => formatDateOnly(item.date)),
+        datasets: [
+          {
+            label: 'Reservations',
+            data: reportData.salesTimeline.map(item => item.reservations),
+            borderColor: 'rgba(75, 99, 255, 1)',
+            backgroundColor: 'rgba(75, 99, 255, 0.2)',
+            tension: 0.4,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Number of Reservations'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: aggregation.charAt(0).toUpperCase() + aggregation.slice(1)
+            }
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `Reservations: ${context.parsed.y}`;
+              }
+            }
+          },
+          title: {
+            display: true,
+            text: `${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} Reservations`
+          }
+        }
+      }
+    });
+    
+    // Initialize table distribution chart if data exists
+    if (reportData.reservationsByTable && reportData.reservationsByTable.length > 0 && categoryChartRef.current) {
+      if (categoryChartInstance.current) {
+        categoryChartInstance.current.destroy();
+      }
+      
+      const tableCtx = categoryChartRef.current.getContext('2d');
+      
+      categoryChartInstance.current = new Chart(tableCtx, {
+        type: 'bar',
+        data: {
+          labels: reportData.reservationsByTable.map(item => `Table ${item.table_no}`),
+          datasets: [
+            {
+              label: 'Reservations',
+              data: reportData.reservationsByTable.map(item => item.reservationCount),
+              backgroundColor: 'rgba(54, 162, 235, 0.6)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Reservations by Table'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Number of Reservations'
+              }
+            }
+          }
+        }
+      });
+    }
+  };
+  
+  // When showing reservations report, ensure all summary stats cards are appropriate
+  const renderSummaryStats = () => {
+    if (reportType === 'reservations') {
+      return (
+        <div className="summary-stats">
+          <div className="stat-card total-reservations">
+            <h3>Total Reservations</h3>
+            <p className="stat-number">{reportData.totalReservations}</p>
+            <p className="stat-comparison">
+              {reportData.previousPeriodReservations !== undefined && (
+                <>
+                  {getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations) > 0 ? (
+                    <span className="positive">↑ {getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations).toFixed(1)}%</span>
+                  ) : (
+                    <span className="negative">↓ {Math.abs(getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations)).toFixed(1)}%</span>
+                  )}
+                  {' from previous period'}
+                </>
+              )}
+            </p>
+          </div>
+          
+          <div className="stat-card avg-reservation">
+            <h3>Avg. Daily Reservations</h3>
+            <p className="stat-number">
+              {reportData.averageReservationsPerDay ? 
+                reportData.averageReservationsPerDay.toFixed(1) : 
+                (reportData.totalReservations / Math.max(1, reportData.period?.durationDays || 1)).toFixed(1)
+              }
+            </p>
+          </div>
+          
+          {reportData.period && (
+            <div className="stat-card report-period">
+              <h3>Period Duration</h3>
+              <p className="stat-number">{reportData.period.durationDays} days</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // For other report types, use the existing summary stats
+    return (
+      <div className="summary-stats">
+        {/* ...existing summary stats code... */}
+      </div>
+    );
+  };
+  
   return (
     <div className="dashboard-container">
       <Sidebar />
@@ -427,92 +579,8 @@ function Reports() {
           </div>
         ) : reportData ? (
           <div className="reports-content">
-            {/* Summary Stats Cards */}
-            <div className="summary-stats">
-              <div className="stat-card total-sales">
-                <h3>Total Sales</h3>
-                <p className="stat-number">{formatCurrency(reportData.totalSales)}</p>
-                <p className="stat-comparison">
-                  {reportData.previousPeriodSales !== undefined && (
-                    <>
-                      {getPercentageChange(reportData.totalSales, reportData.previousPeriodSales) > 0 ? (
-                        <span className="positive">↑ {getPercentageChange(reportData.totalSales, reportData.previousPeriodSales).toFixed(1)}%</span>
-                      ) : (
-                        <span className="negative">↓ {Math.abs(getPercentageChange(reportData.totalSales, reportData.previousPeriodSales)).toFixed(1)}%</span>
-                      )}
-                      {' from previous period'}
-                    </>
-                  )}
-                </p>
-              </div>
-              
-              <div className="stat-card total-orders">
-                <h3>Total Orders</h3>
-                <p className="stat-number">{reportData.totalOrders}</p>
-                <p className="stat-comparison">
-                  {reportData.previousPeriodOrders !== undefined && (
-                    <>
-                      {getPercentageChange(reportData.totalOrders, reportData.previousPeriodOrders) > 0 ? (
-                        <span className="positive">↑ {getPercentageChange(reportData.totalOrders, reportData.previousPeriodOrders).toFixed(1)}%</span>
-                      ) : (
-                        <span className="negative">↓ {Math.abs(getPercentageChange(reportData.totalOrders, reportData.previousPeriodOrders)).toFixed(1)}%</span>
-                      )}
-                      {' from previous period'}
-                    </>
-                  )}
-                </p>
-              </div>
-              
-              <div className="stat-card avg-order">
-                <h3>Avg. Order Value</h3>
-                <p className="stat-number">
-                  {reportData.totalOrders > 0 
-                    ? formatCurrency(reportData.totalSales / reportData.totalOrders) 
-                    : formatCurrency(0)
-                  }
-                </p>
-                <p className="stat-comparison">
-                  {reportData.previousPeriodSales !== undefined && reportData.previousPeriodOrders > 0 && (
-                    <>
-                      {getPercentageChange(
-                        reportData.totalOrders > 0 ? reportData.totalSales / reportData.totalOrders : 0,
-                        reportData.previousPeriodOrders > 0 ? reportData.previousPeriodSales / reportData.previousPeriodOrders : 0
-                      ) > 0 ? (
-                        <span className="positive">↑ {getPercentageChange(
-                          reportData.totalOrders > 0 ? reportData.totalSales / reportData.totalOrders : 0,
-                          reportData.previousPeriodOrders > 0 ? reportData.previousPeriodSales / reportData.previousPeriodOrders : 0
-                        ).toFixed(1)}%</span>
-                      ) : (
-                        <span className="negative">↓ {Math.abs(getPercentageChange(
-                          reportData.totalOrders > 0 ? reportData.totalSales / reportData.totalOrders : 0,
-                          reportData.previousPeriodOrders > 0 ? reportData.previousPeriodSales / reportData.previousPeriodOrders : 0
-                        )).toFixed(1)}%</span>
-                      )}
-                      {' from previous period'}
-                    </>
-                  )}
-                </p>
-              </div>
-              
-              {reportType === 'reservations' && (
-                <div className="stat-card total-reservations">
-                  <h3>Total Reservations</h3>
-                  <p className="stat-number">{reportData.totalReservations}</p>
-                  <p className="stat-comparison">
-                    {reportData.previousPeriodReservations !== undefined && (
-                      <>
-                        {getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations) > 0 ? (
-                          <span className="positive">↑ {getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations).toFixed(1)}%</span>
-                        ) : (
-                          <span className="negative">↓ {Math.abs(getPercentageChange(reportData.totalReservations, reportData.previousPeriodReservations)).toFixed(1)}%</span>
-                        )}
-                        {' from previous period'}
-                      </>
-                    )}
-                  </p>
-                </div>
-              )}
-            </div>
+            {/* Use conditional rendering for summary stats */}
+            {renderSummaryStats()}
             
             {/* Charts */}
             <div className="report-charts">
@@ -565,34 +633,36 @@ function Reports() {
             )}
             
             {/* Daily Breakdown Table */}
-            <div className="daily-breakdown-section">
-              <h3>Sales Breakdown</h3>
-              <div className="table-container">
-                <table className="sales-breakdown-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Orders</th>
-                      <th>Sales</th>
-                      <th>Avg. Order Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reportData.salesTimeline.map((day, index) => (
-                      <tr key={index}>
-                        <td>{formatDateOnly(day.date)}</td>
-                        <td>{day.orders}</td>
-                        <td>{formatCurrency(day.amount)}</td>
-                        <td>{day.orders > 0 ? formatCurrency(day.amount / day.orders) : formatCurrency(0)}</td>
+            {reportType !== 'reservations' && (
+              <div className="daily-breakdown-section">
+                <h3>Sales Breakdown</h3>
+                <div className="table-container">
+                  <table className="sales-breakdown-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Orders</th>
+                        <th>Sales</th>
+                        <th>Avg. Order Value</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {reportData.salesTimeline.map((day, index) => (
+                        <tr key={index}>
+                          <td>{formatDateOnly(day.date)}</td>
+                          <td>{day.orders}</td>
+                          <td>{formatCurrency(day.amount)}</td>
+                          <td>{day.orders > 0 ? formatCurrency(day.amount / day.orders) : formatCurrency(0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
             
-            {/* Add Revenue by Order Type Section */}
-            {reportData.revenueByType && Object.keys(reportData.revenueByType).length > 0 && (
+            {/* Only show revenue by order type for sales reports */}
+            {reportType === 'sales' && reportData.revenueByType && Object.keys(reportData.revenueByType).length > 0 && (
               <div className="order-type-section">
                 <h3>Revenue by Order Type</h3>
                 <div className="table-container">
@@ -619,6 +689,71 @@ function Reports() {
                   </table>
                 </div>
               </div>
+            )}
+            
+            {/* Add reservation-specific sections */}
+            {reportType === 'reservations' && (
+              <>
+                <div className="reservation-stats">
+                  {reportData.reservationsByTable && reportData.reservationsByTable.length > 0 && (
+                    <div className="reservation-tables-section">
+                      <h3>Reservations by Table</h3>
+                      <div className="table-container">
+                        <table className="reservations-table">
+                          <thead>
+                            <tr>
+                              <th>Table</th>
+                              <th>Count</th>
+                              <th>Percentage</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportData.reservationsByTable.map((item, index) => {
+                              const percentage = ((item.reservationCount / reportData.totalReservations) * 100).toFixed(1);
+                              return (
+                                <tr key={index}>
+                                  <td>Table {item.table_no}</td>
+                                  <td>{item.reservationCount}</td>
+                                  <td>{percentage}%</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {reportData.reservationsByTimeOfDay && reportData.reservationsByTimeOfDay.length > 0 && (
+                    <div className="reservation-times-section">
+                      <h3>Reservations by Time of Day</h3>
+                      <div className="table-container">
+                        <table className="reservations-table">
+                          <thead>
+                            <tr>
+                              <th>Time Period</th>
+                              <th>Count</th>
+                              <th>Percentage</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportData.reservationsByTimeOfDay.map((item, index) => {
+                              const percentage = ((item.reservationCount / reportData.totalReservations) * 100).toFixed(1);
+                              return (
+                                <tr key={index}>
+                                  <td>{item.time_of_day}</td>
+                                  <td>{item.reservationCount}</td>
+                                  <td>{percentage}%</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         ) : (
