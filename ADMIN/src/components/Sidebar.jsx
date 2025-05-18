@@ -53,7 +53,7 @@ function Sidebar() {
       icon: '👥'
     },
     {
-      name: 'Attendance',
+      name: 'Staff Attendance',
       path: '/attendance',
       icon: '⏱️'
     },

@@ -12,6 +12,18 @@ import Reports from './pages/Reports';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import "./App.css";
 
+// Add the ProtectedRoute component definition
+function ProtectedRoute({ children }) {
+  const { isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    // Redirect to login if not authenticated
+    return <Navigate to="/login" />;
+  }
+  
+  return children;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -25,15 +37,51 @@ function App() {
             } 
           />
           <Route path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/menu-management" element={<MenuManagement />} />
-          <Route path="/orders" element={<OrdersManagement />} />
-          <Route path="/reservations" element={<ReservationManagement />} />
-          <Route path="/inventory" element={<InventoryManagement />} />
-          <Route path="/staff" element={<StaffManagement />} />
-          <Route path="/delivery" element={<DeliveryManagement />} />
-          <Route path="/settings" element={<AdminSettings />} />
-          <Route path="/reports" element={<Reports />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/menu-management" element={
+            <ProtectedRoute>
+              <MenuManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/orders" element={
+            <ProtectedRoute>
+              <OrdersManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/reservations" element={
+            <ProtectedRoute>
+              <ReservationManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/inventory" element={
+            <ProtectedRoute>
+              <InventoryManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/staff" element={
+            <ProtectedRoute>
+              <StaffManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/delivery" element={
+            <ProtectedRoute>
+              <DeliveryManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <AdminSettings />
+            </ProtectedRoute>
+          } />
+          <Route path="/reports" element={
+            <ProtectedRoute>
+              <Reports />
+            </ProtectedRoute>
+          } />
         </Routes>
       </Router>
     </AuthProvider>
