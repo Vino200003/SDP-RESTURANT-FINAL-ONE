@@ -15,6 +15,8 @@ const supplierRoutes = require('./routes/supplierRoutes'); // Add supplier route
 const staffRoutes = require('./routes/staffRoutes'); // Add staff routes
 const deliveryRoutes = require('./routes/deliveryRoutes'); // Import delivery routes
 const adminSettingsRoutes = require('./routes/adminSettings'); // Import admin settings routes
+const deliveryZoneRoutes = require('./routes/deliveryZoneRoutes'); // Import delivery zone routes
+const miscRoutes = require('./routes/miscRoutes'); // Import miscellaneous routes
 
 const app = express();
 
@@ -57,6 +59,9 @@ app.use('/api/suppliers', supplierRoutes); // Register supplier routes
 app.use('/api/staff', staffRoutes); // Register staff routes
 app.use('/api/delivery', deliveryRoutes); // Register delivery routes
 app.use('/api/admin/settings', adminSettingsRoutes); // Register admin settings routes
+app.use('/api/delivery-zones', deliveryZoneRoutes); // Register delivery zone routes
+app.use('/api', miscRoutes); // Register miscellaneous routes
+console.log('Miscellaneous routes initialized');
 
 // Default route - add more logging to help with debugging
 app.get('/', (req, res) => {

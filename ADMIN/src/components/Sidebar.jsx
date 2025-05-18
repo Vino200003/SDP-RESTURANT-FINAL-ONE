@@ -33,7 +33,7 @@ function Sidebar() {
       icon: '🍽️'
     },
     {
-      name: 'Orders',
+      name: 'Orders Management',
       path: '/orders',
       icon: '🛒'
     },

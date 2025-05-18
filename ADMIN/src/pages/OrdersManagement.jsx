@@ -430,7 +430,11 @@ function OrdersManagement() {
                   filteredOrders.map((order) => (
                     <tr key={order.order_id}>
                       <td>{order.order_id}</td>
-                      <td>{order.user_id ? `User ${order.user_id}` : 'Guest'}</td>
+                      <td>
+                        {order.first_name || order.last_name ? 
+                          `${order.first_name || ''} ${order.last_name || ''}`.trim() : 
+                          order.customer_name || (order.user_id ? `User ${order.user_id}` : 'Guest')}
+                      </td>
                       <td>{order.order_type}</td>
                       <td>{formatDate(order.created_at)}</td>
                       <td>Rs. {parseFloat(order.total_amount).toFixed(2)}</td>

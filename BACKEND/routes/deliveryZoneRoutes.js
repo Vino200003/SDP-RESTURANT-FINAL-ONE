@@ -1,14 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const deliveryZoneController = require('../controllers/deliveryZoneController');
+const { authenticateToken, isAdmin } = require('../middleware/authMiddleware');
 
-// Get all delivery zones
+// Public routes for customer app
+router.get('/public', deliveryZoneController.getAllDeliveryZones); // Get active zones only
+router.get('/public/:id', deliveryZoneController.getDeliveryZoneById);
+router.get('/public/:id/fee', deliveryZoneController.getDeliveryFeeByZoneId);
+
+// Admin routes - protected
 router.get('/', deliveryZoneController.getAllDeliveryZones);
-
-// Get delivery zone by ID
 router.get('/:id', deliveryZoneController.getDeliveryZoneById);
-
-// Get delivery fee by zone ID
-router.get('/fee/:id', deliveryZoneController.getDeliveryFeeByZoneId);
+router.post('/', deliveryZoneController.createDeliveryZone);
+router.put('/:id', deliveryZoneController.updateDeliveryZone);
+router.delete('/:id', deliveryZoneController.deleteDeliveryZone);
 
 module.exports = router;

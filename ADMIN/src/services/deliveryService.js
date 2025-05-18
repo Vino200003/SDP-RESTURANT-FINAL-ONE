@@ -114,3 +114,130 @@ export const assignDeliveryOrder = async (orderId, deliveryPersonId) => {
     throw error;
   }
 };
+
+/**
+ * Get all delivery zones including inactive ones (admin only)
+ */
+export const getAllDeliveryZones = async () => {
+  try {
+    const response = await fetch(`${API_URL}/api/delivery-zones?all=true`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch delivery zones');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching delivery zones:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a specific delivery zone by ID
+ */
+export const getDeliveryZoneById = async (zoneId) => {
+  try {
+    const response = await fetch(`${API_URL}/api/delivery-zones/${zoneId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch delivery zone');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching delivery zone ${zoneId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new delivery zone
+ */
+export const createDeliveryZone = async (zoneData) => {
+  try {
+    const response = await fetch(`${API_URL}/api/delivery-zones`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify(zoneData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create delivery zone');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating delivery zone:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update an existing delivery zone
+ */
+export const updateDeliveryZone = async (zoneId, zoneData) => {
+  try {
+    const response = await fetch(`${API_URL}/api/delivery-zones/${zoneId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify(zoneData)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update delivery zone');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error updating delivery zone ${zoneId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a delivery zone
+ */
+export const deleteDeliveryZone = async (zoneId) => {
+  try {
+    const response = await fetch(`${API_URL}/api/delivery-zones/${zoneId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete delivery zone');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error deleting delivery zone ${zoneId}:`, error);
+    throw error;
+  }
+};

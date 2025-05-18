@@ -25,7 +25,7 @@ const CheckoutPage = () => {
   const [cart, setCart] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
   const [serviceFee, setServiceFee] = useState(0);
-  const [deliveryFee, setDeliveryFee] = useState(5.00);
+  const [deliveryFee, setDeliveryFee] = useState(50.00);
   const [total, setTotal] = useState(0);
   const [deliveryMethod, setDeliveryMethod] = useState('delivery');
   const [isLoading, setIsLoading] = useState(true);
@@ -418,7 +418,7 @@ const CheckoutPage = () => {
       setDeliveryFee(parseFloat(selectedZone.delivery_fee));
     } else {
       // Default fee if no zone selected
-      setDeliveryFee(5.00);
+      setDeliveryFee(50.00);
     }
     
     // Clear method-specific errors when changing methods
@@ -769,7 +769,7 @@ const CheckoutPage = () => {
                         <option value="">Select Delivery Zone</option>
                         {deliveryZones.map(zone => (
                           <option key={zone.zone_id} value={zone.zone_id}>
-                            {zone.gs_division} - Delivery Fee: LKR {parseFloat(zone.delivery_fee).toFixed(2)}
+                            {zone.gs_division}
                           </option>
                         ))}
                       </select>
@@ -777,6 +777,8 @@ const CheckoutPage = () => {
                       {selectedZone && (
                         <p className="pickup-time-note">
                           Estimated delivery time: {selectedZone.estimated_delivery_time_min} minutes
+                          <br />
+                          Delivery Fee: LKR {parseFloat(selectedZone.delivery_fee).toFixed(2)}
                         </p>
                       )}
                     </div>
