@@ -173,6 +173,13 @@ function InventoryManagement() {
       filtered = filtered.filter(ing => new Date(ing.last_updated) <= new Date(endDate));
     }
 
+    // Sort ingredients by ID numerically
+    filtered.sort((a, b) => {
+      const idA = parseInt(a.id);
+      const idB = parseInt(b.id);
+      return idA - idB;
+    });
+
     setFilteredIngredients(filtered);
   };
 
@@ -192,6 +199,13 @@ function InventoryManagement() {
     if (status) {
       filtered = filtered.filter(sup => sup.status === status);
     }
+
+    // Sort suppliers by ID numerically
+    filtered.sort((a, b) => {
+      const idA = parseInt(a.id);
+      const idB = parseInt(b.id);
+      return idA - idB;
+    });
 
     setFilteredSuppliers(filtered);
   };
@@ -216,6 +230,13 @@ function InventoryManagement() {
     if (ingredientId) {
       filtered = filtered.filter(pur => pur.ingredient_id.toString() === ingredientId);
     }
+
+    // Sort purchases by ID numerically
+    filtered.sort((a, b) => {
+      const idA = parseInt(a.id);
+      const idB = parseInt(b.id);
+      return idA - idB;
+    });
 
     setFilteredPurchases(filtered);
   };
