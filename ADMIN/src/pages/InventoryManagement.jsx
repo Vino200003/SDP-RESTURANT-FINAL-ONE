@@ -1,1473 +1,1290 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
+import '../styles/InventoryManagement.css';
 import { 
-  getAllInventoryItems, 
-  getInventoryStats, 
-  getSuppliers,
-  updateInventoryQuantity,
-  createInventoryItem,
-  updateInventoryItem,
-  deleteInventoryItem,
+  getAllIngredients, 
+  createIngredient, 
+  updateIngredient, 
+  deleteIngredient,
+  getAllSuppliers,
   createSupplier,
   updateSupplier,
-  deleteSupplier
+  deleteSupplier,
+  getAllPurchases,
+  createPurchase
 } from '../services/inventoryService';
-import { serverStatus, checkServerAvailability } from '../utils/mockData';
-import '../styles/InventoryManagement.css';
 
 function InventoryManagement() {
-  // State for inventory items
-  const [inventoryItems, setInventoryItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isServerDown, setIsServerDown] = useState(false);
-  const [inventoryStats, setInventoryStats] = useState({
-    total_items: 0,
-    available: 0,
-    not_available: 0,
-    expired: 0
-  });
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    pages: 1
+  // Active tab state
+  const [activeTab, setActiveTab] = useState('ingredients');
+
+  // Ingredients state
+  const [ingredients, setIngredients] = useState([]);
+  const [filteredIngredients, setFilteredIngredients] = useState([]);
+  const [showAddIngredientForm, setShowAddIngredientForm] = useState(false);
+  const [selectedIngredient, setSelectedIngredient] = useState(null);
+  const [ingredientFilters, setIngredientFilters] = useState({
+    searchTerm: '',
+    category: '',
+    stockLevel: '',
+    startDate: '',
+    endDate: ''
   });
 
-  // State for modals
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // Suppliers state
   const [suppliers, setSuppliers] = useState([]);
-
-  // New inventory item form state
-  const [newItem, setNewItem] = useState({
-    name: '',
-    quantity: 0.00,
-    unit: 'kg',
-    price_per_unit: 0.00,
-    manu_date: '',
-    exp_date: '',
-    purchase_date: '',
-    batch_no: '',
-    status: 'available',
-    supplier_id: ''
-  });
-
-  // Filter states
-  const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    supplier_id: '',
-    sortBy: 'inventory_id', // Changed from 'name' to 'inventory_id'
-    sortOrder: 'asc',
-    page: 1,
-    limit: 10
-  });
-
-  // Simple notification function
-  const notify = (message, type = 'info') => {
-    console.log(`[${type}] ${message}`);
-    alert(message);
-  };
-
-  // Fetch inventory items and stats on component mount
-  useEffect(() => {
-    fetchInventoryItems();
-    fetchInventoryStats();
-    fetchSuppliers();
-  }, []);
-
-  // Fetch inventory items when filters change
-  useEffect(() => {
-    fetchInventoryItems();
-  }, [filters.page, filters.limit, filters.status, filters.supplier_id, filters.sortBy, filters.sortOrder]);
-
-  // Apply search filter locally
-  useEffect(() => {
-    if (filters.search) {
-      applySearchFilter();
-    } else {
-      setFilteredItems(inventoryItems);
-    }
-  }, [filters.search, inventoryItems]);
-
-  // Update server status state when the status changes
-  useEffect(() => {
-    setIsServerDown(!serverStatus.isAvailable);
-  }, [serverStatus.isAvailable]);
-
-  const fetchInventoryItems = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getAllInventoryItems({
-        page: filters.page,
-        limit: filters.limit,
-        status: filters.status,
-        supplier_id: filters.supplier_id,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
-      });
-      
-      // Update server status based on if we got mock data or real data
-      setIsServerDown(!serverStatus.isAvailable);
-      
-      if (data.items) {
-        setInventoryItems(data.items);
-        setFilteredItems(data.items);
-        if (data.pagination) {
-          setPagination(data.pagination);
-        }
-      } else {
-        // If the API returns an array instead of an object with pagination
-        setInventoryItems(Array.isArray(data) ? data : []);
-        setFilteredItems(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
-      notify(`Error fetching inventory items: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchInventoryStats = async () => {
-    try {
-      const data = await getInventoryStats();
-      // Update server status based on result
-      setIsServerDown(!serverStatus.isAvailable);
-      setInventoryStats({
-        total_items: data.total_items || 0,
-        available: data.available || 0,
-        not_available: data.not_available || 0,
-        expired: data.expired || 0
-      });
-    } catch (error) {
-      console.error('Error fetching inventory stats:', error);
-      setInventoryStats({
-        total_items: 0,
-        available: 0,
-        not_available: 0,
-        expired: 0
-      });
-    }
-  };
-
-  // Update the fetchSuppliers function to include better error handling and feedback
-  const fetchSuppliers = async () => {
-    try {
-      setIsLoading(true);
-      console.log('Fetching suppliers...');
-      const suppliersData = await getSuppliers();
-      console.log('Suppliers data received:', suppliersData);
-      setSuppliers(suppliersData);
-      
-      if (suppliersData.length === 0) {
-        notify('No suppliers found. You may need to add some suppliers.', 'warning');
-      }
-    } catch (error) {
-      console.error('Error fetching suppliers:', error);
-      notify(`Failed to load suppliers: ${error.message}`, 'error');
-      setSuppliers([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle retry connection button from the notifier
-  const handleRetryConnection = async () => {
-    console.log('Retrying server connection...');
-    const isAvailable = await checkServerAvailability();
-    setIsServerDown(!isAvailable);
-    if (isAvailable) {
-      // Refresh data with real data from server
-      await fetchInventoryItems();
-      await fetchInventoryStats();
-      notify('Server connection restored! Using real data now.', 'success');
-    } else {
-      notify('Server is still unavailable. Continuing with mock data.', 'warning');
-    }
-  };
-
-  const handleRetrySuppliers = async () => {
-    notify('Retrying connection to supplier service...', 'info');
-    setIsLoading(true);
-    
-    try {
-      const isAvailable = await checkServerAvailability();
-      if (isAvailable) {
-        await fetchSuppliers();
-        notify('Successfully connected to supplier service!', 'success');
-      } else {
-        notify('Server is still unavailable. Please try again later.', 'warning');
-      }
-    } catch (error) {
-      console.error('Error in retry:', error);
-      notify('Connection failed. Please check server status.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const applySearchFilter = () => {
-    const searchLower = filters.search.toLowerCase();
-    
-    const result = inventoryItems.filter(item => {
-      // If empty search term, return all results
-      if (!searchLower.trim()) return true;
-      
-      // Search in item name and supplier
-      return (
-        item.name.toLowerCase().includes(searchLower) ||
-        item.supplier_name.toLowerCase().includes(searchLower)
-      );
-    });
-    
-    setFilteredItems(result);
-  };
-
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters({
-      ...filters,
-      [name]: value,
-      // Reset to page 1 when changing filters (except when changing the page itself)
-      page: name === 'page' ? value : 1
-    });
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      status: '',
-      supplier_id: '',
-      sortBy: 'inventory_id', // Changed from 'name' to 'inventory_id'
-      sortOrder: 'asc',
-      page: 1,
-      limit: 10
-    });
-  };
-
-  // Handle sorting when clicking on table headers
-  const handleSort = (column) => {
-    setFilters({
-      ...filters,
-      sortBy: column,
-      sortOrder: filters.sortBy === column && filters.sortOrder === 'asc' ? 'desc' : 'asc',
-      page: 1
-    });
-  };
-
-  // Handle quantity adjustment
-  const handleQuantityChange = async (itemId, newQuantity) => {
-    if (newQuantity < 0) return; // Prevent negative quantities
-    
-    try {
-      setIsLoading(true);
-      await updateInventoryQuantity(itemId, newQuantity);
-      
-      // Update local state
-      const updatedItems = inventoryItems.map(item => 
-        item.inventory_id === itemId 
-          ? {
-              ...item,
-              quantity: newQuantity,
-              status: newQuantity === 0 
-                ? 'not_available' 
-                : newQuantity <= item.reorder_level 
-                  ? 'low_stock' 
-                  : 'available'
-            } 
-          : item
-      );
-      
-      setInventoryItems(updatedItems);
-      setFilteredItems(updatedItems);
-      
-      // Refresh stats
-      fetchInventoryStats();
-      
-      notify(`Quantity updated successfully`, 'success');
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-      notify(`Error updating quantity: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle add new item
-  const handleAddItem = async () => {
-    try {
-      // Validate form
-      if (!newItem.name || !newItem.supplier_id || !newItem.unit) {
-        notify('Please fill in all required fields.', 'error');
-        return;
-      }
-      
-      setIsLoading(true);
-      const result = await createInventoryItem(newItem);
-      
-      // Add the new item to the list
-      setInventoryItems([...inventoryItems, result]);
-      setFilteredItems([...inventoryItems, result]);
-      
-      // Reset form
-      setNewItem({
-        name: '',
-        quantity: 0,
-        unit: 'kg',
-        manu_date: '',
-        exp_date: '',
-        status: 'available',
-        supplier_id: ''
-      });
-      
-      // Close modal
-      setIsAddModalOpen(false);
-      
-      // Refresh stats
-      fetchInventoryStats();
-      
-      notify('Item added successfully', 'success');
-    } catch (error) {
-      console.error('Error adding item:', error);
-      notify(`Error adding item: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Improve the handleEditItem function to ensure status is properly included
-const handleEditItem = async () => {
-  try {
-    // Validate form
-    if (!selectedItem.name || !selectedItem.supplier_id || !selectedItem.unit) {
-      notify('Please fill in all required fields.', 'error');
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    // Create a clean object with only the necessary fields
-    const cleanedItem = {
-      name: selectedItem.name,
-      quantity: selectedItem.quantity,
-      unit: selectedItem.unit,
-      price_per_unit: selectedItem.price_per_unit,
-      supplier_id: selectedItem.supplier_id,
-      // Explicitly include the status to ensure it gets updated
-      status: selectedItem.status
-    };
-    
-    // Log what status we're sending
-    console.log('Sending status update:', selectedItem.status);
-    
-    // Only include optional fields if they have values
-    if (selectedItem.manu_date) {
-      cleanedItem.manu_date = selectedItem.manu_date;
-    }
-    
-    if (selectedItem.exp_date) {
-      cleanedItem.exp_date = selectedItem.exp_date;
-    }
-    
-    if (selectedItem.purchase_date) {
-      cleanedItem.purchase_date = selectedItem.purchase_date;
-    }
-    
-    if (selectedItem.batch_no) {
-      cleanedItem.batch_no = selectedItem.batch_no;
-    }
-    
-    if (selectedItem.reorder_level !== undefined) {
-      cleanedItem.reorder_level = selectedItem.reorder_level;
-    }
-    
-    // Log data being sent
-    console.log('Sending update with data:', cleanedItem);
-    
-    // Make the API call with the cleaned data
-    await updateInventoryItem(selectedItem.inventory_id, cleanedItem);
-    
-    // Close modal first to avoid any state issues
-    setIsEditModalOpen(false);
-    
-    // Refresh the inventory list to get the updated item
-    await fetchInventoryItems();
-    
-    // Refresh stats
-    await fetchInventoryStats();
-    
-    notify('Item updated successfully', 'success');
-  } catch (error) {
-    console.error('Error updating item:', error);
-    notify(`Error updating item: ${error.message || 'Unknown error occurred'}`, 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-  // Handle delete item
-  const handleDeleteItem = async (itemId) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
-    
-    try {
-      setIsLoading(true);
-      await deleteInventoryItem(itemId);
-      
-      // Remove the item from the list
-      const updatedItems = inventoryItems.filter(item => item.inventory_id !== itemId);
-      setInventoryItems(updatedItems);
-      setFilteredItems(updatedItems);
-      
-      // Refresh stats
-      fetchInventoryStats();
-      
-      notify('Item deleted successfully', 'success');
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      notify(`Error deleting item: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle pagination
-  const handlePageChange = (newPage) => {
-    if (newPage < 1 || newPage > pagination.pages) return;
-    setFilters({
-      ...filters,
-      page: newPage
-    });
-  };
-
-  // Format currency
-  const formatCurrency = (amount) => {
-    return `Rs. ${parseFloat(amount).toFixed(2)}`;
-  };
-
-  // Format date from ISO string to readable format
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const options = { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric'
-    };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  // Check if a date is expired
-  const isExpired = (dateString) => {
-    if (!dateString) return false;
-    
-    const expDate = new Date(dateString);
-    const today = new Date();
-    return expDate < today;
-  };
-
-  // Check if a date is approaching expiration (within 7 days)
-  const isNearExpiry = (dateString) => {
-    if (!dateString) return false;
-    
-    const expDate = new Date(dateString);
-    const today = new Date();
-    const diffTime = expDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 && diffDays <= 7;
-  };
-
-  // Get status badge class based on the status field
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'available': return 'status-available';
-      case 'not_available': return 'status-not_available';
-      case 'expired': return 'status-expired';
-      default: return '';
-    }
-  };
-
-  // Get date class based on expiry
-  const getDateClass = (dateString) => {
-    if (isExpired(dateString)) return 'date-expired';
-    if (isNearExpiry(dateString)) return 'date-warning';
-    return '';
-  };
-  
-  // Find supplier name by ID
-  const getSupplierName = (supplierId) => {
-    const supplier = suppliers.find(s => s.supplier_id === parseInt(supplierId));
-    return supplier ? supplier.name : 'Unknown';
-  };
-
-  // Add supplier management state
-  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
-  const [supplierView, setSupplierView] = useState('list'); // 'list', 'add', 'edit'
+  const [filteredSuppliers, setFilteredSuppliers] = useState([]);
+  const [showAddSupplierForm, setShowAddSupplierForm] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [supplierFilters, setSupplierFilters] = useState({
+    searchTerm: '',
+    status: '',
+  });
+
+  // Purchases state
+  const [purchases, setPurchases] = useState([]);
+  const [filteredPurchases, setFilteredPurchases] = useState([]);
+  const [showAddPurchaseForm, setShowAddPurchaseForm] = useState(false);
+  const [purchaseFilters, setPurchaseFilters] = useState({
+    startDate: '',
+    endDate: '',
+    supplierId: '',
+    ingredientId: '',
+  });
+
+  // New item forms
+  const [newIngredient, setNewIngredient] = useState({
+    name: '',
+    variant: '',
+    category: '',
+    unit: 'kg',
+    current_stock: 0,
+  });
+
   const [newSupplier, setNewSupplier] = useState({
     name: '',
-    contact_number: '',
+    contact_phone: '',
     email: '',
     address: '',
-    status: 'active' // Default to active
+    status: 'active',
+    notes: '',
   });
 
-  // Add a specific function for the supplier management modal to refresh suppliers
-  const refreshSuppliers = async () => {
-    try {
-      setIsLoading(true);
-      await fetchSuppliers();
-      notify('Supplier list refreshed', 'success');
-    } catch (error) {
-      console.error('Error refreshing suppliers:', error);
-      notify('Failed to refresh suppliers', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [newPurchase, setNewPurchase] = useState({
+    ingredient_id: '',
+    supplier_id: '',
+    quantity: 0,
+    unit_price: 0,
+    purchase_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
 
-  // Add this new function to handle opening the supplier modal with a fresh supplier list
-  const handleOpenSupplierModal = async () => {
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Replace mock data loading with API calls
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  // Function to fetch all data from APIs
+  const fetchAllData = async () => {
     setIsLoading(true);
-    setSupplierView('list');
-    setIsSupplierModalOpen(true);
+    setError(null);
     
     try {
-      await fetchSuppliers();
-    } catch (error) {
-      console.error('Error fetching suppliers for modal:', error);
+      // Fetch ingredients
+      const ingredientsData = await getAllIngredients();
+      setIngredients(ingredientsData);
+      setFilteredIngredients(ingredientsData);
+      
+      // Fetch suppliers
+      const suppliersData = await getAllSuppliers();
+      setSuppliers(suppliersData);
+      setFilteredSuppliers(suppliersData);
+      
+      // Fetch purchases
+      const purchasesData = await getAllPurchases();
+      setPurchases(purchasesData);
+      setFilteredPurchases(purchasesData);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to fetch data. Please try again later.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Add these new functions for supplier management
-  const handleAddSupplier = async () => {
-    try {
-      // Validate form
-      if (!newSupplier.name || !newSupplier.contact_number) {
-        notify('Supplier name and contact number are required.', 'error');
-        return;
+  // Apply filters when ingredient filters change
+  useEffect(() => {
+    filterIngredients();
+  }, [ingredients, ingredientFilters]);
+
+  // Apply filters when supplier filters change
+  useEffect(() => {
+    filterSuppliers();
+  }, [suppliers, supplierFilters]);
+
+  // Apply filters when purchase filters change
+  useEffect(() => {
+    filterPurchases();
+  }, [purchases, purchaseFilters]);
+
+  // Function to filter ingredients
+  const filterIngredients = () => {
+    let filtered = [...ingredients];
+    const { searchTerm, category, stockLevel, startDate, endDate } = ingredientFilters;
+
+    if (searchTerm) {
+      filtered = filtered.filter(ing => 
+        ing.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (ing.variant && ing.variant.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    if (category) {
+      filtered = filtered.filter(ing => ing.category === category);
+    }
+
+    if (stockLevel) {
+      switch(stockLevel) {
+        case 'low':
+          filtered = filtered.filter(ing => ing.current_stock < 10);
+          break;
+        case 'medium':
+          filtered = filtered.filter(ing => ing.current_stock >= 10 && ing.current_stock < 30);
+          break;
+        case 'high':
+          filtered = filtered.filter(ing => ing.current_stock >= 30);
+          break;
+        default:
+          break;
       }
+    }
+
+    // Add date filtering
+    if (startDate) {
+      filtered = filtered.filter(ing => new Date(ing.last_updated) >= new Date(startDate));
+    }
+
+    if (endDate) {
+      filtered = filtered.filter(ing => new Date(ing.last_updated) <= new Date(endDate));
+    }
+
+    setFilteredIngredients(filtered);
+  };
+
+  // Function to filter suppliers
+  const filterSuppliers = () => {
+    let filtered = [...suppliers];
+    const { searchTerm, status } = supplierFilters;
+
+    if (searchTerm) {
+      filtered = filtered.filter(sup => 
+        sup.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (sup.email && sup.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (sup.contact_phone && sup.contact_phone.includes(searchTerm))
+      );
+    }
+
+    if (status) {
+      filtered = filtered.filter(sup => sup.status === status);
+    }
+
+    setFilteredSuppliers(filtered);
+  };
+
+  // Function to filter purchases
+  const filterPurchases = () => {
+    let filtered = [...purchases];
+    const { startDate, endDate, supplierId, ingredientId } = purchaseFilters;
+
+    if (startDate) {
+      filtered = filtered.filter(pur => new Date(pur.purchase_date) >= new Date(startDate));
+    }
+
+    if (endDate) {
+      filtered = filtered.filter(pur => new Date(pur.purchase_date) <= new Date(endDate));
+    }
+
+    if (supplierId) {
+      filtered = filtered.filter(pur => pur.supplier_id.toString() === supplierId);
+    }
+
+    if (ingredientId) {
+      filtered = filtered.filter(pur => pur.ingredient_id.toString() === ingredientId);
+    }
+
+    setFilteredPurchases(filtered);
+  };
+
+  // Helper function for input changes
+  const handleInputChange = (setter, fields) => (e) => {
+    const { name, value } = e.target;
+    setter({
+      ...fields,
+      [name]: value
+    });
+  };
+
+  // Handle filter changes for each entity
+  const handleIngredientFilterChange = (e) => {
+    const { name, value } = e.target;
+    setIngredientFilters({
+      ...ingredientFilters,
+      [name]: value
+    });
+  };
+
+  const handleSupplierFilterChange = (e) => {
+    const { name, value } = e.target;
+    setSupplierFilters({
+      ...supplierFilters,
+      [name]: value
+    });
+  };
+
+  const handlePurchaseFilterChange = (e) => {
+    const { name, value } = e.target;
+    setPurchaseFilters({
+      ...purchaseFilters,
+      [name]: value
+    });
+  };
+
+  // Reset filters
+  const resetFilters = (filterType) => {
+    switch(filterType) {
+      case 'ingredients':
+        setIngredientFilters({
+          searchTerm: '',
+          category: '',
+          stockLevel: '',
+          startDate: '',
+          endDate: ''
+        });
+        break;
+      case 'suppliers':
+        setSupplierFilters({
+          searchTerm: '',
+          status: ''
+        });
+        break;
+      case 'purchases':
+        setPurchaseFilters({
+          startDate: '',
+          endDate: '',
+          supplierId: '',
+          ingredientId: ''
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
+  // CRUD operations for ingredients
+  const handleAddIngredient = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      const response = await createIngredient(newIngredient);
       
+      // Fetch updated ingredients list
+      const updatedIngredients = await getAllIngredients();
+      setIngredients(updatedIngredients);
+      
+      setNewIngredient({
+        name: '',
+        variant: '',
+        category: '',
+        unit: 'kg',
+        current_stock: 0
+      });
+      setShowAddIngredientForm(false);
+    } catch (err) {
+      console.error('Error adding ingredient:', err);
+      setError('Failed to add ingredient. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditIngredient = (ingredient) => {
+    setSelectedIngredient(ingredient);
+    setShowAddIngredientForm(true);
+  };
+
+  const handleUpdateIngredient = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      await updateIngredient(selectedIngredient.id, selectedIngredient);
+      
+      // Fetch updated ingredients list
+      const updatedIngredients = await getAllIngredients();
+      setIngredients(updatedIngredients);
+      
+      setSelectedIngredient(null);
+      setShowAddIngredientForm(false);
+    } catch (err) {
+      console.error('Error updating ingredient:', err);
+      setError('Failed to update ingredient. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteIngredient = async (id) => {
+    if (window.confirm('Are you sure you want to delete this ingredient?')) {
       setIsLoading(true);
       
-      // Create supplier using the API
-      const result = await createSupplier(newSupplier);
+      try {
+        await deleteIngredient(id);
+        
+        // Fetch updated ingredients list
+        const updatedIngredients = await getAllIngredients();
+        setIngredients(updatedIngredients);
+      } catch (err) {
+        console.error('Error deleting ingredient:', err);
+        if (err.response && err.response.status === 400) {
+          alert(err.response.data.message || 'Cannot delete: This ingredient has purchase history.');
+        } else {
+          setError('Failed to delete ingredient. Please try again.');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // CRUD operations for suppliers
+  const handleAddSupplier = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      await createSupplier(newSupplier);
       
-      // Refresh suppliers from server
-      await fetchSuppliers();
+      // Fetch updated suppliers list
+      const updatedSuppliers = await getAllSuppliers();
+      setSuppliers(updatedSuppliers);
       
-      // Reset form and go back to list view
       setNewSupplier({
         name: '',
-        contact_number: '',
+        contact_phone: '',
         email: '',
         address: '',
-        status: 'active'
+        status: 'active',
+        notes: ''
       });
-      setSupplierView('list');
-      
-      notify('Supplier added successfully', 'success');
-    } catch (error) {
-      console.error('Error adding supplier:', error);
-      notify(`Error adding supplier: ${error.message}`, 'error');
+      setShowAddSupplierForm(false);
+    } catch (err) {
+      console.error('Error adding supplier:', err);
+      setError('Failed to add supplier. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEditSupplier = async () => {
+  const handleEditSupplier = (supplier) => {
+    setSelectedSupplier(supplier);
+    setShowAddSupplierForm(true);
+  };
+
+  const handleUpdateSupplier = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
     try {
-      // Validate form
-      if (!selectedSupplier.name || !selectedSupplier.contact_number) {
-        notify('Supplier name and contact number are required.', 'error');
-        return;
-      }
+      await updateSupplier(selectedSupplier.id, selectedSupplier);
       
-      setIsLoading(true);
+      // Fetch updated suppliers list
+      const updatedSuppliers = await getAllSuppliers();
+      setSuppliers(updatedSuppliers);
       
-      // Update supplier using the API
-      await updateSupplier(selectedSupplier.supplier_id, selectedSupplier);
-      
-      // Refresh suppliers from server
-      await fetchSuppliers();
-      
-      setSupplierView('list');
-      
-      notify('Supplier updated successfully', 'success');
-    } catch (error) {
-      console.error('Error updating supplier:', error);
-      notify(`Error updating supplier: ${error.message}`, 'error');
+      setSelectedSupplier(null);
+      setShowAddSupplierForm(false);
+    } catch (err) {
+      console.error('Error updating supplier:', err);
+      setError('Failed to update supplier. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteSupplier = async (supplierId) => {
-    // Check if supplier is used by any inventory items
-    const isUsed = inventoryItems.some(item => item.supplier_id === supplierId);
-    
-    if (isUsed) {
-      notify('Cannot delete supplier that is used by inventory items. Please reassign the items first.', 'warning');
-      return;
-    }
-    
-    if (!confirm('Are you sure you want to delete this supplier?')) return;
-    
-    try {
+  const handleDeleteSupplier = async (id) => {
+    if (window.confirm('Are you sure you want to delete this supplier?')) {
       setIsLoading(true);
       
-      // Delete supplier using the API
-      await deleteSupplier(supplierId);
-      
-      // Refresh suppliers from server
-      await fetchSuppliers();
-      
-      notify('Supplier deleted successfully', 'success');
-    } catch (error) {
-      console.error('Error deleting supplier:', error);
-      
-      // Special handling for backend constraint error
-      if (error.message.includes('inventory items')) {
-        notify('This supplier cannot be deleted because it has inventory items assigned to it.', 'error');
-      } else {
-        notify(`Error deleting supplier: ${error.message}`, 'error');
+      try {
+        await deleteSupplier(id);
+        
+        // Fetch updated suppliers list
+        const updatedSuppliers = await getAllSuppliers();
+        setSuppliers(updatedSuppliers);
+      } catch (err) {
+        console.error('Error deleting supplier:', err);
+        if (err.response && err.response.status === 400) {
+          alert(err.response.data.message || 'Cannot delete: This supplier has purchase history.');
+        } else {
+          setError('Failed to delete supplier. Please try again.');
+        }
+      } finally {
+        setIsLoading(false);
       }
+    }
+  };
+
+  // CRUD operations for purchases
+  const handleAddPurchase = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      await createPurchase(newPurchase);
+      
+      // Fetch updated data
+      const [updatedPurchases, updatedIngredients] = await Promise.all([
+        getAllPurchases(),
+        getAllIngredients()
+      ]);
+      
+      setPurchases(updatedPurchases);
+      setIngredients(updatedIngredients);
+      
+      setNewPurchase({
+        ingredient_id: '',
+        supplier_id: '',
+        quantity: 0,
+        unit_price: 0,
+        purchase_date: new Date().toISOString().split('T')[0],
+        notes: ''
+      });
+      setShowAddPurchaseForm(false);
+    } catch (err) {
+      console.error('Error recording purchase:', err);
+      setError('Failed to record purchase. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // UI Helper functions
+  const getStockLevelClass = (stockLevel) => {
+    if (stockLevel < 10) return 'low-stock';
+    if (stockLevel < 30) return 'medium-stock';
+    return 'high-stock';
+  };
+
+  const getUniqueCategories = () => {
+    const categories = new Set(ingredients.map(ing => ing.category).filter(Boolean));
+    return ['', ...Array.from(categories)];
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    return date.toLocaleString();
+  };
+
+  // Show loading spinner
+  if (isLoading && !ingredients.length && !suppliers.length && !purchases.length) {
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <main className="dashboard-content">
+          <Header title="Inventory Management" />
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Loading data...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show error message
+  if (error && !ingredients.length && !suppliers.length && !purchases.length) {
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <main className="dashboard-content">
+          <Header title="Inventory Management" />
+          <div className="error-container">
+            <p className="error-message">{error}</p>
+            <button className="retry-btn" onClick={fetchAllData}>Retry</button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="inventory-management-container">
+    <div className="dashboard-container">
       <Sidebar />
-      <main className="inventory-management-content">
-        <div className="inventory-page-header">
-          <h1>Inventory Management</h1>
-          <p className="inventory-page-subheader">Track and manage your restaurant's inventory items</p>
-        </div>
+      <main className="dashboard-content">
+        <Header title="Inventory Management" />
         
-        {/* Server Status Notifier */}
-        {isServerDown && (
-          <div className="server-status-notification">
-            <p>
-              <strong>Notice:</strong> Unable to connect to the server. Showing mock data. Real inventory data might differ.
-            </p>
-            <button onClick={handleRetryConnection}>
-              Retry Connection
-            </button>
-          </div>
-        )}
-        
-        <div className="inventory-overview">
-          <div className="inventory-stat-card healthy">
-            <div className="stat-icon">
-              <i className="fas fa-check-circle"></i>
-            </div>
-            <h3>Available</h3>
-            <p className="stat-number">{inventoryStats.available}</p>
-          </div>
-          <div className="inventory-stat-card low">
-            <div className="stat-icon">
-              <i className="fas fa-exclamation-triangle"></i>
-            </div>
-            <h3>Not Available</h3>
-            <p className="stat-number">{inventoryStats.not_available}</p>
-          </div>
-          <div className="inventory-stat-card out">
-            <div className="stat-icon">
-              <i className="fas fa-times-circle"></i>
-            </div>
-            <h3>Expired</h3>
-            <p className="stat-number">{inventoryStats.expired}</p>
-          </div>
-          <div className="inventory-stat-card total">
-            <div className="stat-icon">
-              <i className="fas fa-boxes"></i>
-            </div>
-            <h3>Total Items</h3>
-            <p className="stat-number">{inventoryStats.total_items}</p>
-          </div>
-        </div>
-
-        <div className="filters-section">
-          <div className="search-bar">
-            <input 
-              name="search"
-              value={filters.search}
-              onChange={handleFilterChange}
-              placeholder="Search inventory by name..."
-            />
-          </div>
-          
-          <div className="filter-options">
-            <select 
-              name="status" 
-              value={filters.status}  
-              onChange={handleFilterChange}
-            >
-              <option value="">All Status</option>
-              <option value="available">Available</option>
-              <option value="not_available">Not Available</option>
-              <option value="expired">Expired</option>
-            </select>
-            
-            <select 
-              name="supplier_id" 
-              value={filters.supplier_id}  
-              onChange={handleFilterChange}
-            >
-              <option value="">All Suppliers</option>
-              {suppliers.map(supplier => (
-                <option key={supplier.supplier_id} value={supplier.supplier_id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-            
+        <div className="inventory-controls">
+          <div className="tabs">
             <button 
-              className="add-inventory-btn" 
-              onClick={() => setIsAddModalOpen(true)}
+              className={`tab-btn ${activeTab === 'ingredients' ? 'active' : ''}`}
+              onClick={() => setActiveTab('ingredients')}
             >
-              <i className="fas fa-plus"></i> Add New Item
+              <i className="fas fa-carrot"></i> Ingredients
             </button>
-
-            {/* Add button for managing suppliers */}
             <button 
-              className="manage-suppliers-btn" 
-              onClick={handleOpenSupplierModal}
+              className={`tab-btn ${activeTab === 'suppliers' ? 'active' : ''}`}
+              onClick={() => setActiveTab('suppliers')}
             >
-              <i className="fas fa-users"></i> Manage Suppliers
+              <i className="fas fa-truck"></i> Suppliers
             </button>
-            
-            <button className="reset-filters-btn" onClick={resetFilters}>
-              <i className="fas fa-redo"></i> Reset Filters
+            <button 
+              className={`tab-btn ${activeTab === 'purchases' ? 'active' : ''}`}
+              onClick={() => setActiveTab('purchases')}
+            >
+              <i className="fas fa-shopping-basket"></i> Purchases
             </button>
           </div>
         </div>
         
-        {isLoading ? (
-          <div className="loading">
-            <div className="loading-spinner"></div>
-            <p>Loading inventory items...</p>
-          </div>
-        ) : (
-          <div className="inventory-table-container">
-            <table className="inventory-table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('inventory_id')} 
-                      className={filters.sortBy === 'inventory_id' ? `active-sort ${filters.sortOrder}` : ''}>
-                    ID
-                  </th>
-                  <th onClick={() => handleSort('name')} 
-                      className={filters.sortBy === 'name' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Item Name
-                  </th>
-                  <th onClick={() => handleSort('quantity')} 
-                      className={filters.sortBy === 'quantity' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Quantity
-                  </th>
-                  <th>Unit</th>
-                  <th onClick={() => handleSort('price_per_unit')} 
-                      className={filters.sortBy === 'price_per_unit' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Price Per Unit
-                  </th>
-                  <th onClick={() => handleSort('batch_no')} 
-                      className={filters.sortBy === 'batch_no' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Batch No
-                  </th>
-                  <th onClick={() => handleSort('purchase_date')} 
-                      className={filters.sortBy === 'purchase_date' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Purchase Date
-                  </th>
-                  <th onClick={() => handleSort('exp_date')} 
-                      className={filters.sortBy === 'exp_date' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Expiry Date
-                  </th>
-                  <th onClick={() => handleSort('supplier_id')} 
-                      className={filters.sortBy === 'supplier_id' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Supplier
-                  </th>
-                  <th onClick={() => handleSort('status')} 
-                      className={filters.sortBy === 'status' ? `active-sort ${filters.sortOrder}` : ''}>
-                    Status
-                  </th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.length > 0 ? (
-                  filteredItems.map((item) => (
-                    <tr key={item.inventory_id}>
-                      <td>{item.inventory_id}</td>
-                      <td>{item.name}</td>
-                      <td className="quantity-value">
-                        {parseFloat(item.quantity).toFixed(2)}
-                      </td>
-                      <td>{item.unit}</td>
-                      <td>{formatCurrency(item.price_per_unit)}</td>
-                      <td>{item.batch_no || "-"}</td>
-                      <td className="date-field">
-                        {formatDate(item.purchase_date)}
-                      </td>
-                      <td className={`date-field ${getDateClass(item.exp_date)}`}>
-                        {formatDate(item.exp_date)}
-                      </td>
-                      <td>{item.supplier_name || getSupplierName(item.supplier_id)}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusClass(item.status)}`}>
-                          {item.status.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="inventory-actions">
-                          <button 
-                            className="edit-btn"
-                            onClick={() => {
-                              setSelectedItem(item);
-                              setIsEditModalOpen(true);
-                            }}
-                          >
-                            <i className="fas fa-edit"></i> Edit
-                          </button>
-                          <button 
-                            className="delete-btn"
-                            onClick={() => handleDeleteItem(item.inventory_id)}
-                          >
-                            <i className="fas fa-trash-alt"></i> Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
+        {/* Ingredients Tab */}
+        {activeTab === 'ingredients' && (
+          <div className="tab-content">
+            <div className="section-header">
+              <h2>Manage Ingredients</h2>
+              <button 
+                className="add-btn"
+                onClick={() => {
+                  setSelectedIngredient(null);
+                  setShowAddIngredientForm(true);
+                }}
+              >
+                <i className="fas fa-plus"></i> Add New Ingredient
+              </button>
+            </div>
+            
+            {/* Ingredients Filters */}
+            <div className="filters-section">
+              <div className="search-bar">
+                <input 
+                  type="text" 
+                  name="searchTerm"
+                  value={ingredientFilters.searchTerm}
+                  onChange={handleIngredientFilterChange}
+                  placeholder="Search ingredients..."
+                />
+              </div>
+              
+              <div className="filter-options">
+                <select 
+                  name="category"
+                  value={ingredientFilters.category}
+                  onChange={handleIngredientFilterChange}
+                >
+                  <option value="">All Categories</option>
+                  {getUniqueCategories().map((category, index) => (
+                    category && <option key={index} value={category}>{category}</option>
+                  ))}
+                </select>
+                
+                <select 
+                  name="stockLevel"
+                  value={ingredientFilters.stockLevel}
+                  onChange={handleIngredientFilterChange}
+                >
+                  <option value="">All Stock Levels</option>
+                  <option value="low">Low Stock (&lt; 10)</option>
+                  <option value="medium">Medium Stock (10-30)</option>
+                  <option value="high">High Stock (&gt; 30)</option>
+                </select>
+                
+                <div className="date-filter">
+                  <div className="date-inputs">
+                    <input 
+                      type="date" 
+                      name="startDate"
+                      value={ingredientFilters.startDate}
+                      onChange={handleIngredientFilterChange}
+                      placeholder="From date"
+                    />
+                    <span>to</span>
+                    <input 
+                      type="date" 
+                      name="endDate"
+                      value={ingredientFilters.endDate}
+                      onChange={handleIngredientFilterChange}
+                      placeholder="To date"
+                    />
+                  </div>
+                </div>
+                
+                <button 
+                  className="reset-filter-btn"
+                  onClick={() => resetFilters('ingredients')}
+                >
+                  <i className="fas fa-undo"></i> Reset Filters
+                </button>
+              </div>
+            </div>
+            
+            {/* Ingredients Table */}
+            <div className="table-container">
+              <table className="data-table ingredients-table">
+                <thead>
                   <tr>
-                    <td colSpan="11" className="no-items">
-                      <div className="no-items-message">
-                        No inventory items match the current filters.
-                      </div>
-                      <button 
-                        className="reset-filters-btn" 
-                        onClick={resetFilters}
-                        style={{ margin: '0 auto', display: 'block' }}
-                      >
-                        <i className="fas fa-redo"></i> Reset Filters
-                      </button>
-                    </td>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Variant</th>
+                    <th>Category</th>
+                    <th>Unit</th>
+                    <th>Current Stock</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredIngredients.length > 0 ? (
+                    filteredIngredients.map(ingredient => (
+                      <tr key={ingredient.id}>
+                        <td>{ingredient.id}</td>
+                        <td>{ingredient.name}</td>
+                        <td>{ingredient.variant || 'N/A'}</td>
+                        <td>{ingredient.category}</td>
+                        <td>{ingredient.unit}</td>
+                        <td className={`stock-level ${getStockLevelClass(ingredient.current_stock)}`}>
+                          {ingredient.current_stock} {ingredient.unit}
+                        </td>
+                        <td>{formatDateTime(ingredient.last_updated)}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button 
+                              className="edit-btn"
+                              onClick={() => handleEditIngredient(ingredient)}
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button 
+                              className="delete-btn"
+                              onClick={() => handleDeleteIngredient(ingredient.id)}
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8" className="no-data">No ingredients found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
             
-            {pagination.pages > 1 && (
-              <div className="pagination-controls">
-                <button 
-                  onClick={() => handlePageChange(filters.page - 1)}
-                  disabled={filters.page === 1}
-                >
-                  <i className="fas fa-chevron-left"></i> Previous
-                </button>
-                <span>Page {filters.page} of {pagination.pages}</span>
-                <button 
-                  onClick={() => handlePageChange(filters.page + 1)}
-                  disabled={filters.page === pagination.pages}
-                >
-                  Next <i className="fas fa-chevron-right"></i>
-                </button>
+            {/* Add/Edit Ingredient Form Modal */}
+            {showAddIngredientForm && (
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h3>{selectedIngredient ? 'Edit Ingredient' : 'Add New Ingredient'}</h3>
+                    <button 
+                      className="close-modal-btn"
+                      onClick={() => {
+                        setShowAddIngredientForm(false);
+                        setSelectedIngredient(null);
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={selectedIngredient ? handleUpdateIngredient : handleAddIngredient}>
+                    <div className="form-group">
+                      <label>Name:</label>
+                      <input 
+                        type="text" 
+                        name="name"
+                        value={selectedIngredient ? selectedIngredient.name : newIngredient.name}
+                        onChange={selectedIngredient 
+                          ? (e) => setSelectedIngredient({...selectedIngredient, name: e.target.value})
+                          : handleInputChange(setNewIngredient, newIngredient)
+                        }
+                        required
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Variant:</label>
+                      <input 
+                        type="text" 
+                        name="variant"
+                        value={selectedIngredient ? selectedIngredient.variant : newIngredient.variant}
+                        onChange={selectedIngredient 
+                          ? (e) => setSelectedIngredient({...selectedIngredient, variant: e.target.value})
+                          : handleInputChange(setNewIngredient, newIngredient)
+                        }
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Category:</label>
+                      <input 
+                        type="text" 
+                        name="category"
+                        value={selectedIngredient ? selectedIngredient.category : newIngredient.category}
+                        onChange={selectedIngredient 
+                          ? (e) => setSelectedIngredient({...selectedIngredient, category: e.target.value})
+                          : handleInputChange(setNewIngredient, newIngredient)
+                        }
+                        required
+                      />
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Unit:</label>
+                        <select 
+                          name="unit"
+                          value={selectedIngredient ? selectedIngredient.unit : newIngredient.unit}
+                          onChange={selectedIngredient 
+                            ? (e) => setSelectedIngredient({...selectedIngredient, unit: e.target.value})
+                            : handleInputChange(setNewIngredient, newIngredient)
+                          }
+                          required
+                        >
+                          <option value="kg">Kilogram (kg)</option>
+                          <option value="g">Gram (g)</option>
+                          <option value="liters">Liters</option>
+                          <option value="ml">Milliliters (ml)</option>
+                          <option value="pieces">Pieces</option>
+                        </select>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Current Stock:</label>
+                        <input 
+                          type="number" 
+                          name="current_stock"
+                          step="0.01"
+                          min="0"
+                          value={selectedIngredient ? selectedIngredient.current_stock : newIngredient.current_stock}
+                          onChange={selectedIngredient 
+                            ? (e) => setSelectedIngredient({...selectedIngredient, current_stock: e.target.value})
+                            : handleInputChange(setNewIngredient, newIngredient)
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-actions">
+                      <button type="submit" className="submit-btn">
+                        {selectedIngredient ? 'Update Ingredient' : 'Add Ingredient'}
+                      </button>
+                      <button 
+                        type="button" 
+                        className="cancel-btn"
+                        onClick={() => {
+                          setShowAddIngredientForm(false);
+                          setSelectedIngredient(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
           </div>
         )}
         
-        {/* Add Item Modal */}
-        {isAddModalOpen && (
-          <div className="modal-overlay">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h2>Add New Inventory Item</h2>
-                <button 
-                  className="close-modal-btn"
-                  onClick={() => setIsAddModalOpen(false)}
-                >
-                  &times;
-                </button>
+        {/* Suppliers Tab */}
+        {activeTab === 'suppliers' && (
+          <div className="tab-content">
+            <div className="section-header">
+              <h2>Manage Suppliers</h2>
+              <button 
+                className="add-btn"
+                onClick={() => {
+                  setSelectedSupplier(null);
+                  setShowAddSupplierForm(true);
+                }}
+              >
+                <i className="fas fa-plus"></i> Add New Supplier
+              </button>
+            </div>
+            
+            {/* Suppliers Filters */}
+            <div className="filters-section">
+              <div className="search-bar">
+                <input 
+                  type="text" 
+                  name="searchTerm"
+                  value={supplierFilters.searchTerm}
+                  onChange={handleSupplierFilterChange}
+                  placeholder="Search suppliers..."
+                />
               </div>
               
-              <div className="modal-body">
-                <div className="inventory-form">
-                  <div className="form-group">
-                    <label>Item Name <span className="required">*</span></label>
-                    <input 
-                      type="text" 
-                      value={newItem.name}
-                      onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-                      placeholder="E.g., Basmati Rice"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Quantity <span className="required">*</span></label>
-                    <input 
-                      type="number" 
-                      min="0"
-                      step="0.01"
-                      value={newItem.quantity}
-                      onChange={(e) => setNewItem({...newItem, quantity: parseFloat(e.target.value)})}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Unit <span className="required">*</span></label>
-                    <select
-                      value={newItem.unit}
-                      onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
-                      required
-                    >
-                      <option value="kg">Kilogram (kg)</option>
-                      <option value="g">Gram (g)</option>
-                      <option value="L">Liter (L)</option>
-                      <option value="ml">Milliliter (ml)</option>
-                      <option value="pcs">Pieces (pcs)</option>
-                      <option value="box">Box</option>
-                      <option value="m">Meter (m)</option>
-                      <option value="cm">Centimeter (cm)</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Price Per Unit (Rs.) <span className="required">*</span></label>
-                    <input 
-                      type="number" 
-                      min="0"
-                      step="0.01"
-                      value={newItem.price_per_unit}
-                      onChange={(e) => setNewItem({...newItem, price_per_unit: parseFloat(e.target.value)})}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Batch Number <span className="required">*</span></label>
-                    <input 
-                      type="text" 
-                      value={newItem.batch_no}
-                      onChange={(e) => setNewItem({...newItem, batch_no: e.target.value})}
-                      placeholder="E.g., BT2023-001"
-                      required
-                    />
-                    <div className="form-hint">Must be unique for each inventory item</div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Manufacturing Date</label>
-                    <input 
-                      type="date" 
-                      value={newItem.manu_date}
-                      onChange={(e) => setNewItem({...newItem, manu_date: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Expiry Date</label>
-                    <input 
-                      type="date" 
-                      value={newItem.exp_date}
-                      onChange={(e) => setNewItem({...newItem, exp_date: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Purchase Date</label>
-                    <input 
-                      type="date" 
-                      value={newItem.purchase_date}
-                      onChange={(e) => setNewItem({...newItem, purchase_date: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Status <span className="required">*</span></label>
-                    <select
-                      value={newItem.status}
-                      onChange={(e) => setNewItem({...newItem, status: e.target.value})}
-                      required
-                    >
-                      <option value="available">Available</option>
-                      <option value="not_available">Not Available</option>
-                      <option value="expired">Expired</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Supplier <span className="required">*</span></label>
-                    <select
-                      value={newItem.supplier_id}
-                      onChange={(e) => setNewItem({...newItem, supplier_id: parseInt(e.target.value)})}
-                      required
-                    >
-                      <option value="">Select Supplier</option>
-                      {suppliers.map(supplier => (
-                        <option key={supplier.supplier_id} value={supplier.supplier_id}>
-                          {supplier.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="form-actions">
-                    <button 
-                      className="cancel-btn"
-                      onClick={() => setIsAddModalOpen(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      className="save-btn"
-                      onClick={handleAddItem}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Adding...' : 'Add Item'}
-                    </button>
-                  </div>
-                </div>
+              <div className="filter-options">
+                <select 
+                  name="status"
+                  value={supplierFilters.status}
+                  onChange={handleSupplierFilterChange}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                
+                <button 
+                  className="reset-filter-btn"
+                  onClick={() => resetFilters('suppliers')}
+                >
+                  <i className="fas fa-undo"></i> Reset Filters
+                </button>
               </div>
             </div>
+            
+            {/* Suppliers Table */}
+            <div className="table-container">
+              <table className="data-table suppliers-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Contact Phone</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSuppliers.length > 0 ? (
+                    filteredSuppliers.map(supplier => (
+                      <tr key={supplier.id} className={supplier.status === 'inactive' ? 'inactive-row' : ''}>
+                        <td>{supplier.id}</td>
+                        <td>{supplier.name}</td>
+                        <td>{supplier.contact_phone || 'N/A'}</td>
+                        <td>{supplier.email || 'N/A'}</td>
+                        <td className="address-cell">{supplier.address || 'N/A'}</td>
+                        <td>
+                          <span className={`status-badge status-${supplier.status}`}>
+                            {supplier.status === 'active' ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="notes-cell">{supplier.notes || 'N/A'}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button 
+                              className="edit-btn"
+                              onClick={() => handleEditSupplier(supplier)}
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button 
+                              className="delete-btn"
+                              onClick={() => handleDeleteSupplier(supplier.id)}
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8" className="no-data">No suppliers found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Add/Edit Supplier Form Modal */}
+            {showAddSupplierForm && (
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h3>{selectedSupplier ? 'Edit Supplier' : 'Add New Supplier'}</h3>
+                    <button 
+                      className="close-modal-btn"
+                      onClick={() => {
+                        setShowAddSupplierForm(false);
+                        setSelectedSupplier(null);
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={selectedSupplier ? handleUpdateSupplier : handleAddSupplier}>
+                    <div className="form-group">
+                      <label>Name:</label>
+                      <input 
+                        type="text" 
+                        name="name"
+                        value={selectedSupplier ? selectedSupplier.name : newSupplier.name}
+                        onChange={selectedSupplier 
+                          ? (e) => setSelectedSupplier({...selectedSupplier, name: e.target.value})
+                          : handleInputChange(setNewSupplier, newSupplier)
+                        }
+                        required
+                      />
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Contact Phone:</label>
+                        <input 
+                          type="text" 
+                          name="contact_phone"
+                          value={selectedSupplier ? selectedSupplier.contact_phone : newSupplier.contact_phone}
+                          onChange={selectedSupplier 
+                            ? (e) => setSelectedSupplier({...selectedSupplier, contact_phone: e.target.value})
+                            : handleInputChange(setNewSupplier, newSupplier)
+                          }
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Email:</label>
+                        <input 
+                          type="email" 
+                          name="email"
+                          value={selectedSupplier ? selectedSupplier.email : newSupplier.email}
+                          onChange={selectedSupplier 
+                            ? (e) => setSelectedSupplier({...selectedSupplier, email: e.target.value})
+                            : handleInputChange(setNewSupplier, newSupplier)
+                          }
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Address:</label>
+                      <input 
+                        type="text" 
+                        name="address"
+                        value={selectedSupplier ? selectedSupplier.address : newSupplier.address}
+                        onChange={selectedSupplier 
+                          ? (e) => setSelectedSupplier({...selectedSupplier, address: e.target.value})
+                          : handleInputChange(setNewSupplier, newSupplier)
+                        }
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Status:</label>
+                      <select 
+                        name="status"
+                        value={selectedSupplier ? selectedSupplier.status : newSupplier.status}
+                        onChange={selectedSupplier 
+                          ? (e) => setSelectedSupplier({...selectedSupplier, status: e.target.value})
+                          : handleInputChange(setNewSupplier, newSupplier)
+                        }
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Notes:</label>
+                      <textarea 
+                        name="notes"
+                        rows="3"
+                        value={selectedSupplier ? selectedSupplier.notes : newSupplier.notes}
+                        onChange={selectedSupplier 
+                          ? (e) => setSelectedSupplier({...selectedSupplier, notes: e.target.value})
+                          : handleInputChange(setNewSupplier, newSupplier)
+                        }
+                      ></textarea>
+                    </div>
+                    
+                    <div className="form-actions">
+                      <button type="submit" className="submit-btn">
+                        {selectedSupplier ? 'Update Supplier' : 'Add Supplier'}
+                      </button>
+                      <button 
+                        type="button" 
+                        className="cancel-btn"
+                        onClick={() => {
+                          setShowAddSupplierForm(false);
+                          setSelectedSupplier(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
-        {/* Edit Item Modal */}
-        {isEditModalOpen && selectedItem && (
-          <div className="modal-overlay">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h2>Edit Inventory Item</h2>
-                <button 
-                  className="close-modal-btn"
-                  onClick={() => setIsEditModalOpen(false)}
-                >
-                  &times;
-                </button>
-              </div>
-              
-              <div className="modal-body">
-                <div className="inventory-form">
-                  <div className="form-group">
-                    <label>Item Name <span className="required">*</span></label>
-                    <input 
-                      type="text" 
-                      value={selectedItem.name}
-                      onChange={(e) => setSelectedItem({...selectedItem, name: e.target.value})}
-                      placeholder="Enter item name"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Quantity <span className="required">*</span></label>
-                    <input 
-                      type="number" 
-                      min="0"
-                      step="0.01"
-                      value={selectedItem.quantity}
-                      onChange={(e) => setSelectedItem({...selectedItem, quantity: parseFloat(e.target.value)})}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Unit <span className="required">*</span></label>
-                    <select
-                      value={selectedItem.unit}
-                      onChange={(e) => setSelectedItem({...selectedItem, unit: e.target.value})}
-                      required
-                    >
-                      <option value="kg">Kilogram (kg)</option>
-                      <option value="g">Gram (g)</option>
-                      <option value="L">Liter (L)</option>
-                      <option value="ml">Milliliter (ml)</option>
-                      <option value="pcs">Pieces (pcs)</option>
-                      <option value="box">Box</option>
-                      <option value="m">Meter (m)</option>
-                      <option value="cm">Centimeter (cm)</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Price Per Unit (Rs.) <span className="required">*</span></label>
-                    <input 
-                      type="number" 
-                      min="0"
-                      step="0.01"
-                      value={selectedItem.price_per_unit}
-                      onChange={(e) => setSelectedItem({...selectedItem, price_per_unit: parseFloat(e.target.value)})}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Batch Number <span className="required">*</span></label>
-                    <input 
-                      type="text" 
-                      value={selectedItem.batch_no || ''}
-                      onChange={(e) => setSelectedItem({...selectedItem, batch_no: e.target.value})}
-                      placeholder="E.g., BT2023-001"
-                      required
-                    />
-                    <div className="form-hint">Must be unique for each inventory item</div>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Manufacturing Date</label>
+        {/* Purchases Tab */}
+        {activeTab === 'purchases' && (
+          <div className="tab-content">
+            <div className="section-header">
+              <h2>Manage Purchases</h2>
+              <button 
+                className="add-btn"
+                onClick={() => setShowAddPurchaseForm(true)}
+              >
+                <i className="fas fa-plus"></i> Record New Purchase
+              </button>
+            </div>
+            
+            {/* Purchases Filters */}
+            <div className="filters-section purchases-filters">
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label>Date Range:</label>
+                  <div className="date-inputs">
                     <input 
                       type="date" 
-                      value={selectedItem.manu_date ? selectedItem.manu_date.substring(0, 10) : ''}
-                      onChange={(e) => setSelectedItem({...selectedItem, manu_date: e.target.value})}
+                      name="startDate"
+                      value={purchaseFilters.startDate}
+                      onChange={handlePurchaseFilterChange}
                     />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Expiry Date</label>
+                    <span>to</span>
                     <input 
                       type="date" 
-                      value={selectedItem.exp_date ? selectedItem.exp_date.substring(0, 10) : ''}
-                      onChange={(e) => setSelectedItem({...selectedItem, exp_date: e.target.value})}
+                      name="endDate"
+                      value={purchaseFilters.endDate}
+                      onChange={handlePurchaseFilterChange}
                     />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Purchase Date</label>
-                    <input 
-                      type="date" 
-                      value={selectedItem.purchase_date ? selectedItem.purchase_date.substring(0, 10) : ''}
-                      onChange={(e) => setSelectedItem({...selectedItem, purchase_date: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Status</label>
-                    <select 
-                      value={selectedItem.status || 'available'}
-                      onChange={(e) => setSelectedItem({...selectedItem, status: e.target.value})}
-                      className="form-control"
-                    >
-                      <option value="available">Available</option>
-                      <option value="expired">Expired</option>
-                      <option value="used">Used</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Supplier <span className="required">*</span></label>
-                    <select
-                      value={selectedItem.supplier_id}
-                      onChange={(e) => setSelectedItem({...selectedItem, supplier_id: parseInt(e.target.value)})}
-                      required
-                    >
-                      <option value="">Select Supplier</option>
-                      {suppliers.map(supplier => (
-                        <option key={supplier.supplier_id} value={supplier.supplier_id}>
-                          {supplier.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="form-actions">
-                    <button 
-                      className="cancel-btn"
-                      onClick={() => setIsEditModalOpen(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      className="save-btn"
-                      onClick={handleEditItem}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Saving...' : 'Save Changes'}
-                    </button>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Add Supplier Management Modal */}
-        {isSupplierModalOpen && (
-          <div className="modal-overlay">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h2>
-                  {supplierView === 'list' && 'Manage Suppliers'}
-                  {supplierView === 'add' && 'Add New Supplier'}
-                  {supplierView === 'edit' && 'Edit Supplier'}
-                </h2>
+                
+                <div className="filter-group">
+                  <label>Supplier:</label>
+                  <select 
+                    name="supplierId"
+                    value={purchaseFilters.supplierId}
+                    onChange={handlePurchaseFilterChange}
+                  >
+                    <option value="">All Suppliers</option>
+                    {suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id.toString()}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="filter-group">
+                  <label>Ingredient:</label>
+                  <select 
+                    name="ingredientId"
+                    value={purchaseFilters.ingredientId}
+                    onChange={handlePurchaseFilterChange}
+                  >
+                    <option value="">All Ingredients</option>
+                    {ingredients.map(ingredient => (
+                      <option key={ingredient.id} value={ingredient.id.toString()}>
+                        {ingredient.name} {ingredient.variant ? `(${ingredient.variant})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
                 <button 
-                  className="close-modal-btn"
-                  onClick={() => setIsSupplierModalOpen(false)}
+                  className="reset-filter-btn"
+                  onClick={() => resetFilters('purchases')}
                 >
-                  &times;
+                  <i className="fas fa-undo"></i> Reset Filters
                 </button>
               </div>
-              
-              <div className="modal-body">
-                {supplierView === 'list' && (
-                  <>
-                    <div className="supplier-list-header">
-                      <div>
-                        <button 
-                          className="refresh-button"
-                          onClick={refreshSuppliers}
-                          disabled={isLoading}
-                        >
-                          <i className="fas fa-sync-alt"></i> Refresh
-                        </button>
-                      </div>
-                      <button 
-                        className="add-button"
-                        onClick={() => setSupplierView('add')}
-                      >
-                        <i className="fas fa-plus"></i> Add New Supplier
-                      </button>
-                    </div>
-                    
-                    {isLoading ? (
-                      <div className="loading-spinner-container">
-                        <div className="loading-spinner"></div>
-                        <p>Loading suppliers...</p>
-                      </div>
-                    ) : suppliers.length === 0 ? (
-                      <div className="no-suppliers-message">
-                        <p>No suppliers found. You can add a new supplier or check your connection to the server.</p>
-                        <button 
-                          className="retry-button"
-                          onClick={refreshSuppliers}
-                        >
-                          Retry Connection
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="supplier-table-container">
-                        <table className="supplier-table">
-                          <thead>
-                            <tr>
-                              <th>ID</th>
-                              <th>Name</th>
-                              <th>Contact Number</th>
-                              <th>Email</th>
-                              <th>Address</th>
-                              <th>Status</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {suppliers.length > 0 ? (
-                              suppliers.map((supplier) => (
-                                <tr key={supplier.supplier_id}>
-                                  <td>{supplier.supplier_id}</td>
-                                  <td>{supplier.name}</td>
-                                  <td>{supplier.contact_number}</td>
-                                  <td>{supplier.email || "-"}</td>
-                                  <td>{supplier.address || "-"}</td>
-                                  <td>
-                                    <span className={`status-badge ${supplier.status === 'active' ? 'status-available' : 'status-not_available'}`}>
-                                      {supplier.status ? supplier.status.toUpperCase() : 'ACTIVE'}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <div className="supplier-actions">
-                                      <button 
-                                        className="edit-btn"
-                                        onClick={() => {
-                                          setSelectedSupplier(supplier);
-                                          setSupplierView('edit');
-                                        }}
-                                      >
-                                        <i className="fas fa-edit"></i> Edit
-                                      </button>
-                                      <button 
-                                        className="delete-btn"
-                                        onClick={() => handleDeleteSupplier(supplier.supplier_id)}
-                                      >
-                                        <i className="fas fa-trash-alt"></i> Delete
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan="6" className="no-items">
-                                  <div className="no-items-message">
-                                    No suppliers found.
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </>
-                )}
-                
-                {supplierView === 'add' && (
-                  <div className="supplier-form">
-                    <div className="form-group">
-                      <label>Supplier Name <span className="required">*</span></label>
-                      <input 
-                        type="text" 
-                        value={newSupplier.name}
-                        onChange={(e) => setNewSupplier({...newSupplier, name: e.target.value})}
-                        placeholder="Enter supplier name"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Contact Number <span className="required">*</span></label>
-                      <input 
-                        type="text" 
-                        value={newSupplier.contact_number}
-                        onChange={(e) => setNewSupplier({...newSupplier, contact_number: e.target.value})}
-                        placeholder="Enter contact number"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Email</label>
-                      <input 
-                        type="email" 
-                        value={newSupplier.email}
-                        onChange={(e) => setNewSupplier({...newSupplier, email: e.target.value})}
-                        placeholder="Enter email address"
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Status <span className="required">*</span></label>
-                      <select
-                        value={newSupplier.status}
-                        onChange={(e) => setNewSupplier({...newSupplier, status: e.target.value})}
-                        required
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </div>
-                    
-                    <div className="form-group full-width">
-                      <label>Address</label>
-                      <textarea 
-                        value={newSupplier.address}
-                        onChange={(e) => setNewSupplier({...newSupplier, address: e.target.value})}
-                        placeholder="Enter complete address"
-                        rows="3"
-                      ></textarea>
-                    </div>
-                    
-                    <div className="form-actions">
-                      <button 
-                        className="cancel-btn"
-                        onClick={() => setSupplierView('list')}
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        className="save-btn"
-                        onClick={handleAddSupplier}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? 'Adding...' : 'Add Supplier'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                {supplierView === 'edit' && selectedSupplier && (
-                  <div className="supplier-form">
-                    <div className="form-group">
-                      <label>Supplier Name <span className="required">*</span></label>
-                      <input 
-                        type="text" 
-                        value={selectedSupplier.name}
-                        onChange={(e) => setSelectedSupplier({...selectedSupplier, name: e.target.value})}
-                        placeholder="Enter supplier name"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Contact Number <span className="required">*</span></label>
-                      <input 
-                        type="text" 
-                        value={selectedSupplier.contact_number}
-                        onChange={(e) => setSelectedSupplier({...selectedSupplier, contact_number: e.target.value})}
-                        placeholder="Enter contact number"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Email</label>
-                      <input 
-                        type="email" 
-                        value={selectedSupplier.email || ''}
-                        onChange={(e) => setSelectedSupplier({...selectedSupplier, email: e.target.value})}
-                        placeholder="Enter email address"
-                      />
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Status <span className="required">*</span></label>
-                      <select
-                        value={selectedSupplier.status || 'active'}
-                        onChange={(e) => setSelectedSupplier({...selectedSupplier, status: e.target.value})}
-                        required
-                      >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </div>
-                    
-                    <div className="form-group full-width">
-                      <label>Address</label>
-                      <textarea 
-                        value={selectedSupplier.address || ''}
-                        onChange={(e) => setSelectedSupplier({...selectedSupplier, address: e.target.value})}
-                        placeholder="Enter complete address"
-                        rows="3"
-                      ></textarea>
-                    </div>
-                    
-                    <div className="form-actions">
-                      <button 
-                        className="cancel-btn"
-                        onClick={() => setSupplierView('list')}
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        className="save-btn"
-                        onClick={handleEditSupplier}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? 'Saving...' : 'Save Changes'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
+            
+            {/* Purchases Table */}
+            <div className="table-container">
+              <table className="data-table purchases-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Ingredient</th>
+                    <th>Supplier</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total Cost</th>
+                    <th>Purchase Date</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPurchases.length > 0 ? (
+                    filteredPurchases.map(purchase => (
+                      <tr key={purchase.id}>
+                        <td>{purchase.id}</td>
+                        <td>{purchase.ingredient_name}</td>
+                        <td>{purchase.supplier_name}</td>
+                        <td>{purchase.quantity}</td>
+                        <td>Rs. {parseFloat(purchase.unit_price).toFixed(2)}</td>
+                        <td>Rs. {(purchase.quantity * purchase.unit_price).toFixed(2)}</td>
+                        <td>{formatDate(purchase.purchase_date)}</td>
+                        <td className="notes-cell">{purchase.notes || 'N/A'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8" className="no-data">No purchases found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Add Purchase Form Modal */}
+            {showAddPurchaseForm && (
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h3>Record New Purchase</h3>
+                    <button 
+                      className="close-modal-btn"
+                      onClick={() => setShowAddPurchaseForm(false)}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleAddPurchase}>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Ingredient:</label>
+                        <select 
+                          name="ingredient_id"
+                          value={newPurchase.ingredient_id}
+                          onChange={handleInputChange(setNewPurchase, newPurchase)}
+                          required
+                        >
+                          <option value="">Select Ingredient</option>
+                          {ingredients.map(ingredient => (
+                            <option key={ingredient.id} value={ingredient.id.toString()}>
+                              {ingredient.name} {ingredient.variant ? `(${ingredient.variant})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Supplier:</label>
+                        <select 
+                          name="supplier_id"
+                          value={newPurchase.supplier_id}
+                          onChange={handleInputChange(setNewPurchase, newPurchase)}
+                          required
+                        >
+                          <option value="">Select Supplier</option>
+                          {suppliers
+                            .filter(supplier => supplier.status === 'active')
+                            .map(supplier => (
+                              <option key={supplier.id} value={supplier.id.toString()}>
+                                {supplier.name}
+                              </option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Quantity:</label>
+                        <input 
+                          type="number" 
+                          name="quantity"
+                          step="0.01"
+                          min="0.01"
+                          value={newPurchase.quantity}
+                          onChange={handleInputChange(setNewPurchase, newPurchase)}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Unit Price (Rs):</label>
+                        <input 
+                          type="number" 
+                          name="unit_price"
+                          step="0.01"
+                          min="0.01"
+                          value={newPurchase.unit_price}
+                          onChange={handleInputChange(setNewPurchase, newPurchase)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Purchase Date:</label>
+                        <input 
+                          type="date" 
+                          name="purchase_date"
+                          value={newPurchase.purchase_date}
+                          onChange={handleInputChange(setNewPurchase, newPurchase)}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Total Cost:</label>
+                        <input 
+                          type="text" 
+                          value={`Rs. ${(newPurchase.quantity * newPurchase.unit_price).toFixed(2)}`}
+                          readOnly
+                          className="readonly-input"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Notes:</label>
+                      <textarea 
+                        name="notes"
+                        rows="3"
+                        value={newPurchase.notes}
+                        onChange={handleInputChange(setNewPurchase, newPurchase)}
+                      ></textarea>
+                    </div>
+                    
+                    <div className="form-actions">
+                      <button type="submit" className="submit-btn">
+                        Record Purchase
+                      </button>
+                      <button 
+                        type="button" 
+                        className="cancel-btn"
+                        onClick={() => setShowAddPurchaseForm(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

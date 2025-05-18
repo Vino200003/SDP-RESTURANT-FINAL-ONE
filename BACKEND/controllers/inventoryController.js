@@ -1,548 +1,398 @@
 const db = require('../config/db');
+const util = require('util');
 
-/**
- * Get all inventory items with pagination and filtering
- */
-exports.getAllInventoryItems = (req, res) => {
+// Convert db.query to use promises if not already using mysql2/promise
+const query = util.promisify(db.query).bind(db);
+
+// ==================== Ingredient Controllers ====================
+exports.getAllIngredients = async (req, res) => {
   try {
-    // Extract query parameters
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-    
-    // Extract filters
-    const { status, search, supplier_id, sortBy = 'name', sortOrder = 'asc' } = req.query;
-    
-    // Build conditions for filtering
-    let conditions = [];
-    let params = [];
-    
-    // Status filter
-    if (status) {
-      conditions.push('i.status = ?');
-      params.push(status);
-    }
-    
-    // Search filter
-    if (search) {
-      conditions.push('i.name LIKE ?');
-      params.push(`%${search}%`);
-    }
-    
-    // Supplier filter
-    if (supplier_id) {
-      conditions.push('i.supplier_id = ?');
-      params.push(supplier_id);
-    }
-    
-    // Build the WHERE clause
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    
-    // Count total items for pagination
-    const countQuery = `
-      SELECT COUNT(*) as total 
-      FROM inventory i
-      ${whereClause}
-    `;
-    
-    db.query(countQuery, params, (err, countResults) => {
-      if (err) {
-        console.error('Error counting inventory items:', err);
-        return res.status(500).json({ 
-          message: 'Error counting inventory items', 
-          error: err.message 
-        });
-      }
-      
-      // Get total count
-      const total = countResults[0].total;
-      const pages = Math.ceil(total / limit);
-      
-      // Build the query for fetching items with sorting and pagination
-      const query = `
-        SELECT i.*, s.name as supplier_name
-        FROM inventory i
-        LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
-        ${whereClause}
-        ORDER BY ${sortBy ? `i.${sortBy}` : 'i.name'} ${sortOrder === 'desc' ? 'DESC' : 'ASC'}
-        LIMIT ? OFFSET ?
-      `;
-      
-      // Add pagination parameters
-      const queryParams = [...params, limit, offset];
-      
-      // Execute the query
-      db.query(query, queryParams, (err, results) => {
-        if (err) {
-          console.error('Error fetching inventory items:', err);
-          return res.status(500).json({ 
-            message: 'Error fetching inventory items', 
-            error: err.message 
-          });
-        }
-        
-        // Send response with pagination info
-        res.json({
-          items: results,
-          pagination: {
-            page,
-            limit,
-            total,
-            pages
-          }
-        });
-      });
-    });
+    const rows = await query('SELECT * FROM ingredients ORDER BY name');
+    res.json(rows);
   } catch (error) {
-    console.error('Server error in getAllInventoryItems:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error fetching ingredients:', error);
+    res.status(500).json({ message: 'Error fetching ingredients', error: error.message });
   }
 };
 
-/**
- * Get inventory item by ID
- */
-exports.getInventoryItemById = (req, res) => {
+exports.getIngredientById = async (req, res) => {
   try {
-    const itemId = req.params.id;
+    const rows = await query('SELECT * FROM ingredients WHERE id = ?', [req.params.id]);
     
-    const query = `
-      SELECT i.*, s.name as supplier_name
-      FROM inventory i
-      LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
-      WHERE i.inventory_id = ?
-    `;
-    
-    db.query(query, [itemId], (err, results) => {
-      if (err) {
-        console.error('Error fetching inventory item:', err);
-        return res.status(500).json({ 
-          message: 'Error fetching inventory item', 
-          error: err.message 
-        });
-      }
-      
-      if (results.length === 0) {
-        return res.status(404).json({ message: 'Inventory item not found' });
-      }
-      
-      res.json(results[0]);
-    });
-  } catch (error) {
-    console.error('Server error in getInventoryItemById:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Create a new inventory item
- */
-exports.createInventoryItem = (req, res) => {
-  try {
-    const { 
-      name, 
-      quantity, 
-      unit, 
-      price_per_unit, 
-      batch_no, 
-      manu_date = null, 
-      exp_date = null, 
-      purchase_date = null, 
-      status = 'available', 
-      supplier_id 
-    } = req.body;
-    
-    // Validate required fields
-    if (!name || quantity === undefined || !unit || !price_per_unit || !batch_no) {
-      return res.status(400).json({ 
-        message: 'Required fields: name, quantity, unit, price_per_unit, batch_no' 
-      });
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Ingredient not found' });
     }
     
-    // Validate that the batch_no is unique
-    db.query('SELECT * FROM inventory WHERE batch_no = ?', [batch_no], (err, results) => {
-      if (err) {
-        console.error('Error checking batch number uniqueness:', err);
-        return res.status(500).json({ 
-          message: 'Error checking batch number', 
-          error: err.message 
-        });
-      }
-      
-      if (results.length > 0) {
-        return res.status(400).json({ message: 'Batch number must be unique' });
-      }
-      
-      // Create new inventory item
-      const newItem = {
-        name,
-        quantity,
-        unit,
-        price_per_unit,
-        batch_no,
-        status,
-        supplier_id: supplier_id || null
-      };
-      
-      // Add optional fields if provided
-      if (manu_date) newItem.manu_date = manu_date;
-      if (exp_date) newItem.exp_date = exp_date;
-      if (purchase_date) newItem.purchase_date = purchase_date;
-      
-      // Insert into database
-      db.query('INSERT INTO inventory SET ?', newItem, (err, result) => {
-        if (err) {
-          console.error('Error creating inventory item:', err);
-          return res.status(500).json({ 
-            message: 'Error creating inventory item', 
-            error: err.message 
-          });
-        }
-        
-        // Get the created item to return with supplier info
-        db.query(`
-          SELECT i.*, s.name as supplier_name
-          FROM inventory i
-          LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
-          WHERE i.inventory_id = ?
-        `, [result.insertId], (err, item) => {
-          if (err) {
-            console.error('Error fetching created item:', err);
-            return res.status(201).json({
-              message: 'Inventory item created successfully',
-              inventory_id: result.insertId
-            });
-          }
-          
-          res.status(201).json(item[0]);
-        });
-      });
-    });
+    res.json(rows[0]);
   } catch (error) {
-    console.error('Server error in createInventoryItem:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error fetching ingredient:', error);
+    res.status(500).json({ message: 'Error fetching ingredient', error: error.message });
   }
 };
 
-/**
- * Update an inventory item
- */
-exports.updateInventoryItem = (req, res) => {
+exports.createIngredient = async (req, res) => {
   try {
-    const itemId = req.params.id;
-    const { 
-      name, 
-      quantity, 
-      unit, 
-      price_per_unit, 
-      batch_no, 
-      manu_date, 
-      exp_date, 
-      purchase_date, 
-      status, 
-      supplier_id 
-    } = req.body;
+    const { name, variant, category, unit, current_stock } = req.body;
     
-    console.log('Update inventory request:', { itemId, body: req.body });
-    
-    // First check if item exists
-    db.query('SELECT * FROM inventory WHERE inventory_id = ?', [itemId], (err, results) => {
-      if (err) {
-        console.error('Error checking inventory item existence:', err);
-        return res.status(500).json({ 
-          message: 'Error checking inventory item', 
-          error: err.message 
-        });
-      }
-      
-      if (results.length === 0) {
-        return res.status(404).json({ message: 'Inventory item not found' });
-      }
-      
-      const currentItem = results[0];
-      
-      // If batch number is changing, ensure it's unique
-      if (batch_no && batch_no !== currentItem.batch_no) {
-        db.query('SELECT * FROM inventory WHERE batch_no = ? AND inventory_id != ?', [batch_no, itemId], (err, batchResults) => {
-          if (err) {
-            console.error('Error checking batch number uniqueness:', err);
-            return res.status(500).json({ 
-              message: 'Error checking batch number', 
-              error: err.message 
-            });
-          }
-          
-          if (batchResults.length > 0) {
-            return res.status(400).json({ message: 'Batch number must be unique' });
-          }
-          
-          updateInventoryItemInDb();
-        });
-      } else {
-        updateInventoryItemInDb();
-      }
-      
-      // Function to update inventory item in database
-      function updateInventoryItemInDb() {
-        // Build update object with only provided fields
-        const updateData = {};
-        if (name !== undefined) updateData.name = name;
-        if (quantity !== undefined) updateData.quantity = quantity;
-        if (unit !== undefined) updateData.unit = unit;
-        if (price_per_unit !== undefined) updateData.price_per_unit = price_per_unit;
-        if (batch_no !== undefined) updateData.batch_no = batch_no;
-        if (manu_date !== undefined) updateData.manu_date = manu_date || null;
-        if (exp_date !== undefined) updateData.exp_date = exp_date || null;
-        if (purchase_date !== undefined) updateData.purchase_date = purchase_date || null;
-        if (status !== undefined) updateData.status = status;
-        if (supplier_id !== undefined) updateData.supplier_id = supplier_id || null;
-        
-        // Check if any data to update
-        if (Object.keys(updateData).length === 0) {
-          return res.status(400).json({ message: 'No fields to update provided' });
-        }
-        
-        console.log('Updating inventory with data:', updateData);
-        
-        // Update item in database
-        db.query('UPDATE inventory SET ? WHERE inventory_id = ?', [updateData, itemId], (err, result) => {
-          if (err) {
-            console.error('Error updating inventory item:', err);
-            return res.status(500).json({ 
-              message: 'Error updating inventory item', 
-              error: err.message 
-            });
-          }
-          
-          if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Inventory item not found' });
-          }
-          
-          // Get updated item to return with supplier info
-          db.query(`
-            SELECT i.*, s.name as supplier_name
-            FROM inventory i
-            LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
-            WHERE i.inventory_id = ?
-          `, [itemId], (err, item) => {
-            if (err) {
-              console.error('Error fetching updated item:', err);
-              return res.json({
-                message: 'Inventory item updated successfully',
-                inventory_id: itemId
-              });
-            }
-            
-            if (item.length === 0) {
-              return res.json({
-                message: 'Inventory item updated successfully, but could not retrieve the updated item',
-                inventory_id: itemId
-              });
-            }
-            
-            res.json(item[0]);
-          });
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Server error in updateInventoryItem:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Update inventory item quantity (partial update)
- */
-exports.updateInventoryQuantity = (req, res) => {
-  try {
-    const itemId = req.params.id;
-    const { quantity } = req.body;
-    
-    console.log('Update quantity request:', { itemId, quantity });
-    
-    if (quantity === undefined) {
-      return res.status(400).json({ message: 'Quantity is required' });
+    if (!name || !category || !unit) {
+      return res.status(400).json({ message: 'Name, category, and unit are required' });
     }
     
-    // Update only the quantity field
-    db.query(
-      'UPDATE inventory SET quantity = ? WHERE inventory_id = ?', 
-      [quantity, itemId], 
-      (err, result) => {
-        if (err) {
-          console.error('Error updating inventory quantity:', err);
-          return res.status(500).json({ 
-            message: 'Error updating inventory quantity', 
-            error: err.message 
-          });
-        }
-        
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ message: 'Inventory item not found' });
-        }
-        
-        // Check if quantity is 0, update status if needed
-        if (quantity === 0) {
-          db.query(
-            'UPDATE inventory SET status = "not_available" WHERE inventory_id = ?',
-            [itemId],
-            (err) => {
-              if (err) {
-                console.error('Error updating status for zero quantity:', err);
-              }
-            }
-          );
-        }
-        
-        // Get updated item to return with supplier info
-        db.query(`
-          SELECT i.*, s.name as supplier_name
-          FROM inventory i
-          LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id
-          WHERE i.inventory_id = ?
-        `, [itemId], (err, item) => {
-          if (err) {
-            console.error('Error fetching updated item:', err);
-            return res.json({
-              message: 'Inventory quantity updated successfully',
-              inventory_id: itemId,
-              quantity
-            });
-          }
-          
-          if (item.length === 0) {
-            return res.json({
-              message: 'Inventory quantity updated successfully, but could not retrieve the updated item',
-              inventory_id: itemId,
-              quantity
-            });
-          }
-          
-          res.json(item[0]);
-        });
-      }
+    const result = await query(
+      'INSERT INTO ingredients (name, variant, category, unit, current_stock) VALUES (?, ?, ?, ?, ?)',
+      [name, variant, category, unit, current_stock || 0]
     );
+    
+    res.status(201).json({
+      message: 'Ingredient created successfully',
+      id: result.insertId
+    });
   } catch (error) {
-    console.error('Server error in updateInventoryQuantity:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error creating ingredient:', error);
+    res.status(500).json({ message: 'Error creating ingredient', error: error.message });
   }
 };
 
-/**
- * Delete an inventory item
- */
-exports.deleteInventoryItem = (req, res) => {
+exports.updateIngredient = async (req, res) => {
   try {
-    const itemId = req.params.id;
+    const { name, variant, category, unit, current_stock } = req.body;
+    const id = req.params.id;
     
-    db.query('DELETE FROM inventory WHERE inventory_id = ?', [itemId], (err, result) => {
-      if (err) {
-        console.error('Error deleting inventory item:', err);
-        return res.status(500).json({ 
-          message: 'Error deleting inventory item', 
-          error: err.message 
-        });
-      }
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: 'Inventory item not found' });
-      }
-      
-      res.json({
-        message: 'Inventory item deleted successfully',
-        inventory_id: itemId
+    if (!name || !category || !unit) {
+      return res.status(400).json({ message: 'Name, category, and unit are required' });
+    }
+    
+    const result = await query(
+      'UPDATE ingredients SET name = ?, variant = ?, category = ?, unit = ?, current_stock = ? WHERE id = ?',
+      [name, variant, category, unit, current_stock, id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Ingredient not found' });
+    }
+    
+    res.json({ message: 'Ingredient updated successfully' });
+  } catch (error) {
+    console.error('Error updating ingredient:', error);
+    res.status(500).json({ message: 'Error updating ingredient', error: error.message });
+  }
+};
+
+exports.deleteIngredient = async (req, res) => {
+  try {
+    const id = req.params.id;
+    
+    // Check if ingredient is used in purchases
+    const purchases = await query('SELECT COUNT(*) AS count FROM purchases WHERE ingredient_id = ?', [id]);
+    
+    if (purchases[0].count > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot delete ingredient with purchase history',
+        count: purchases[0].count
       });
-    });
-  } catch (error) {
-    console.error('Server error in deleteInventoryItem:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Get inventory statistics
- */
-exports.getInventoryStats = (req, res) => {
-  try {
-    const query = `
-      SELECT
-        COUNT(*) as total_items,
-        SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available,
-        SUM(CASE WHEN status = 'not_available' THEN 1 ELSE 0 END) as not_available,
-        SUM(CASE WHEN exp_date < CURDATE() THEN 1 ELSE 0 END) as expired
-      FROM
-        inventory
-    `;
+    }
     
-    db.query(query, (err, results) => {
-      if (err) {
-        console.error('Error fetching inventory statistics:', err);
-        return res.status(500).json({ 
-          message: 'Error fetching inventory statistics', 
-          error: err.message 
-        });
-      }
-      
-      // Return the statistics
-      res.json(results[0]);
-    });
-  } catch (error) {
-    console.error('Server error in getInventoryStats:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
-
-/**
- * Get all inventory categories
- */
-exports.getInventoryCategories = (req, res) => {
-  try {
-    const query = `
-      SELECT DISTINCT unit as name
-      FROM inventory
-      ORDER BY unit
-    `;
+    const result = await query('DELETE FROM ingredients WHERE id = ?', [id]);
     
-    db.query(query, (err, results) => {
-      if (err) {
-        console.error('Error fetching inventory categories:', err);
-        return res.status(500).json({ 
-          message: 'Error fetching inventory categories', 
-          error: err.message 
-        });
-      }
-      
-      // Map results to expected format
-      const categories = results.map((item, index) => ({
-        id: index + 1,
-        name: item.name
-      }));
-      
-      res.json(categories);
-    });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Ingredient not found' });
+    }
+    
+    res.json({ message: 'Ingredient deleted successfully' });
   } catch (error) {
-    console.error('Server error in getInventoryCategories:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error deleting ingredient:', error);
+    res.status(500).json({ message: 'Error deleting ingredient', error: error.message });
   }
 };
 
-// Add a debugging endpoint to check item status
-exports.getItemStatus = (req, res) => {
-  const itemId = req.params.id;
+// ==================== Supplier Controllers ====================
+exports.getAllSuppliers = async (req, res) => {
+  try {
+    const rows = await query('SELECT * FROM suppliers ORDER BY name');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    res.status(500).json({ message: 'Error fetching suppliers', error: error.message });
+  }
+};
+
+exports.getSupplierById = async (req, res) => {
+  try {
+    const rows = await query('SELECT * FROM suppliers WHERE id = ?', [req.params.id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Supplier not found' });
+    }
+    
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching supplier:', error);
+    res.status(500).json({ message: 'Error fetching supplier', error: error.message });
+  }
+};
+
+exports.createSupplier = async (req, res) => {
+  try {
+    const { name, contact_phone, email, address, status, notes } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ message: 'Supplier name is required' });
+    }
+    
+    const result = await query(
+      'INSERT INTO suppliers (name, contact_phone, email, address, status, notes) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, contact_phone, email, address, status || 'active', notes]
+    );
+    
+    res.status(201).json({
+      message: 'Supplier created successfully',
+      id: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating supplier:', error);
+    res.status(500).json({ message: 'Error creating supplier', error: error.message });
+  }
+};
+
+exports.updateSupplier = async (req, res) => {
+  try {
+    const { name, contact_phone, email, address, status, notes } = req.body;
+    const id = req.params.id;
+    
+    if (!name) {
+      return res.status(400).json({ message: 'Supplier name is required' });
+    }
+    
+    const result = await query(
+      'UPDATE suppliers SET name = ?, contact_phone = ?, email = ?, address = ?, status = ?, notes = ? WHERE id = ?',
+      [name, contact_phone, email, address, status, notes, id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Supplier not found' });
+    }
+    
+    res.json({ message: 'Supplier updated successfully' });
+  } catch (error) {
+    console.error('Error updating supplier:', error);
+    res.status(500).json({ message: 'Error updating supplier', error: error.message });
+  }
+};
+
+exports.deleteSupplier = async (req, res) => {
+  try {
+    const id = req.params.id;
+    
+    // Check if supplier is used in purchases
+    const purchases = await query('SELECT COUNT(*) AS count FROM purchases WHERE supplier_id = ?', [id]);
+    
+    if (purchases[0].count > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot delete supplier with purchase history',
+        count: purchases[0].count
+      });
+    }
+    
+    const result = await query('DELETE FROM suppliers WHERE id = ?', [id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Supplier not found' });
+    }
+    
+    res.json({ message: 'Supplier deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting supplier:', error);
+    res.status(500).json({ message: 'Error deleting supplier', error: error.message });
+  }
+};
+
+// ==================== Purchase Controllers ====================
+exports.getAllPurchases = async (req, res) => {
+  try {
+    // Join with ingredients and suppliers tables to get names
+    const rows = await query(`
+      SELECT p.*, i.name AS ingredient_name, i.unit, s.name AS supplier_name 
+      FROM purchases p
+      JOIN ingredients i ON p.ingredient_id = i.id
+      JOIN suppliers s ON p.supplier_id = s.id
+      ORDER BY p.purchase_date DESC
+    `);
+    
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching purchases:', error);
+    res.status(500).json({ message: 'Error fetching purchases', error: error.message });
+  }
+};
+
+exports.getPurchaseById = async (req, res) => {
+  try {
+    const rows = await query(`
+      SELECT p.*, i.name AS ingredient_name, i.unit, s.name AS supplier_name 
+      FROM purchases p
+      JOIN ingredients i ON p.ingredient_id = i.id
+      JOIN suppliers s ON p.supplier_id = s.id
+      WHERE p.id = ?
+    `, [req.params.id]);
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Purchase not found' });
+    }
+    
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching purchase:', error);
+    res.status(500).json({ message: 'Error fetching purchase', error: error.message });
+  }
+};
+
+exports.createPurchase = async (req, res) => {
+  const connection = await db.getConnection();
   
-  db.query('SELECT status FROM inventory WHERE inventory_id = ?', [itemId], (err, results) => {
-    if (err) {
-      return res.status(500).json({ message: 'Error checking status', error: err.message });
+  try {
+    await connection.beginTransaction();
+    
+    const { ingredient_id, supplier_id, quantity, unit_price, purchase_date, notes } = req.body;
+    
+    if (!ingredient_id || !supplier_id || !quantity || !unit_price || !purchase_date) {
+      return res.status(400).json({ 
+        message: 'Ingredient ID, supplier ID, quantity, unit price, and purchase date are required' 
+      });
     }
     
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'Item not found' });
+    // Insert purchase record
+    const [purchaseResult] = await connection.query(
+      'INSERT INTO purchases (ingredient_id, supplier_id, quantity, unit_price, purchase_date, notes) VALUES (?, ?, ?, ?, ?, ?)',
+      [ingredient_id, supplier_id, quantity, unit_price, purchase_date, notes]
+    );
+    
+    // Update ingredient stock
+    const [updateResult] = await connection.query(
+      'UPDATE ingredients SET current_stock = current_stock + ? WHERE id = ?',
+      [quantity, ingredient_id]
+    );
+    
+    if (updateResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Ingredient not found' });
     }
     
-    res.json({ 
-      status: results[0].status,
-      valid_status_values: ['available', 'expired', 'used']
+    await connection.commit();
+    
+    res.status(201).json({
+      message: 'Purchase recorded successfully',
+      id: purchaseResult.insertId
     });
-  });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error recording purchase:', error);
+    res.status(500).json({ message: 'Error recording purchase', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+exports.updatePurchase = async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    const { ingredient_id, supplier_id, quantity, unit_price, purchase_date, notes } = req.body;
+    const id = req.params.id;
+    
+    if (!ingredient_id || !supplier_id || !quantity || !unit_price || !purchase_date) {
+      return res.status(400).json({ 
+        message: 'Ingredient ID, supplier ID, quantity, unit price, and purchase date are required' 
+      });
+    }
+    
+    // Get the old purchase to calculate stock adjustment
+    const [oldPurchase] = await connection.query('SELECT * FROM purchases WHERE id = ?', [id]);
+    
+    if (oldPurchase.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Purchase not found' });
+    }
+    
+    // Calculate stock adjustment
+    const oldQuantity = oldPurchase[0].quantity;
+    const quantityDifference = quantity - oldQuantity;
+    
+    // Only adjust stock if the ingredient or quantity changed
+    if (quantityDifference !== 0 || ingredient_id !== oldPurchase[0].ingredient_id) {
+      // If ingredient changed, revert old ingredient stock
+      if (ingredient_id !== oldPurchase[0].ingredient_id) {
+        await connection.query(
+          'UPDATE ingredients SET current_stock = current_stock - ? WHERE id = ?',
+          [oldQuantity, oldPurchase[0].ingredient_id]
+        );
+        
+        // Add full quantity to new ingredient
+        await connection.query(
+          'UPDATE ingredients SET current_stock = current_stock + ? WHERE id = ?',
+          [quantity, ingredient_id]
+        );
+      } else {
+        // Just adjust the quantity difference for the same ingredient
+        await connection.query(
+          'UPDATE ingredients SET current_stock = current_stock + ? WHERE id = ?',
+          [quantityDifference, ingredient_id]
+        );
+      }
+    }
+    
+    // Update the purchase record
+    const [updateResult] = await connection.query(
+      'UPDATE purchases SET ingredient_id = ?, supplier_id = ?, quantity = ?, unit_price = ?, purchase_date = ?, notes = ? WHERE id = ?',
+      [ingredient_id, supplier_id, quantity, unit_price, purchase_date, notes, id]
+    );
+    
+    await connection.commit();
+    
+    res.json({ message: 'Purchase updated successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error updating purchase:', error);
+    res.status(500).json({ message: 'Error updating purchase', error: error.message });
+  } finally {
+    connection.release();
+  }
+};
+
+exports.deletePurchase = async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    const id = req.params.id;
+    
+    // Get the purchase to adjust stock
+    const [purchase] = await connection.query('SELECT * FROM purchases WHERE id = ?', [id]);
+    
+    if (purchase.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Purchase not found' });
+    }
+    
+    // Adjust ingredient stock
+    const [updateResult] = await connection.query(
+      'UPDATE ingredients SET current_stock = current_stock - ? WHERE id = ?',
+      [purchase[0].quantity, purchase[0].ingredient_id]
+    );
+    
+    // Delete the purchase record
+    const [deleteResult] = await connection.query('DELETE FROM purchases WHERE id = ?', [id]);
+    
+    await connection.commit();
+    
+    res.json({ message: 'Purchase deleted successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error deleting purchase:', error);
+    res.status(500).json({ message: 'Error deleting purchase', error: error.message });
+  } finally {
+    connection.release();
+  }
 };

@@ -2,6 +2,13 @@
  * Application configuration settings
  */
 
+const config = {
+  API_URL: 'http://localhost:5000/api',
+  // Add other configuration settings here
+};
+
+export default config;
+
 // Backend API base URL
 export const API_BASE_URL = 'http://localhost:5000'; // Update this to match your backend server URL
 

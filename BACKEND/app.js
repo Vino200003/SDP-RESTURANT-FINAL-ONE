@@ -52,7 +52,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes); // Ensure admin routes are registered
 app.use('/api/admin/orders', adminOrderRoutes); 
 app.use('/api/health', healthRoutes); // Add health check route
-app.use('/api/inventory', inventoryRoutes); // Register inventory routes
+app.use('/api/inventory', inventoryRoutes); // Fix the router import here
 app.use('/api/suppliers', supplierRoutes); // Register supplier routes
 app.use('/api/staff', staffRoutes); // Register staff routes
 app.use('/api/delivery', deliveryRoutes); // Register delivery routes
@@ -77,5 +77,7 @@ app._router.stack.forEach(function(r){
     console.log(r.route.path);
   }
 });
+
+console.log('Inventory routes initialized');
 
 module.exports = app;

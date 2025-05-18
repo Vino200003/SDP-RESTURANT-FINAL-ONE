@@ -1,1077 +1,423 @@
-/* Layout */
-.inventory-management-container {
+/* Inventory Management Styles */
+
+.inventory-controls {
+  margin-bottom: 20px;
+}
+
+.tabs {
   display: flex;
-  height: 100vh;
-  width: 100%;
-  background-color: #f5f7fa;
-  overflow-x: hidden;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
 }
 
-.inventory-management-content {
-  flex: 1;
-  padding: 2rem;
-  overflow-y: auto;
-  margin-left: 220px; /* Match the sidebar width */
-  width: calc(100% - 220px); /* Subtract sidebar width */
-  transition: all 0.3s ease;
-  background-color: #f5f7fa;
+.tab-btn {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 16px;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-right: 5px;
 }
 
-@media (max-width: 768px) {
-  .inventory-management-content {
-    margin-left: 0;
-    width: 100%;
-    padding: 1rem;
-  }
+.tab-btn:hover {
+  color: #4caf50;
 }
 
-/* Page Header with accent styling */
-.inventory-page-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e2e8f0;
+.tab-btn.active {
+  border-bottom-color: #4caf50;
+  color: #4caf50;
 }
 
-.inventory-page-header h1 {
-  font-size: 1.8rem;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
+.tab-btn i {
+  margin-right: 8px;
 }
 
-.inventory-page-subheader {
-  font-size: 1rem;
-  color: #718096;
+.tab-content {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
 }
 
-/* Enhanced Inventory Stats Overview */
-.inventory-overview {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.inventory-stat-card {
-  background-color: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05);
-  text-align: center;
-  transition: transform 0.3s, box-shadow 0.3s;
+.section-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  margin-bottom: 20px;
 }
 
-.inventory-stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08), 0 6px 6px rgba(0, 0, 0, 0.06);
-}
-
-.inventory-stat-card h3 {
+.section-header h2 {
+  font-size: 20px;
+  color: #333;
   margin: 0;
-  font-size: 1rem;
-  color: #718096;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-.inventory-stat-card .stat-number {
-  font-size: 2.8rem;
-  font-weight: 700;
-  margin: 0.75rem 0 0;
-  line-height: 1;
-}
-
-.inventory-stat-card .stat-icon {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  background-color: rgba(0, 0, 0, 0.06);
-  padding: 0.8rem;
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
+.add-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 15px;
+  font-size: 14px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
+  transition: background-color 0.3s;
 }
 
-.inventory-stat-card.healthy {
-  border-top: 4px solid #48bb78;
+.add-btn i {
+  margin-right: 8px;
 }
 
-.inventory-stat-card.healthy .stat-number,
-.inventory-stat-card.healthy .stat-icon {
-  color: #48bb78;
+.add-btn:hover {
+  background-color: #3d8b40;
 }
 
-.inventory-stat-card.low {
-  border-top: 4px solid #f6ad55;
-}
-
-.inventory-stat-card.low .stat-number,
-.inventory-stat-card.low .stat-icon {
-  color: #f6ad55;
-}
-
-.inventory-stat-card.out {
-  border-top: 4px solid #f56565;
-}
-
-.inventory-stat-card.out .stat-number,
-.inventory-stat-card.out .stat-icon {
-  color: #f56565;
-}
-
-.inventory-stat-card.total {
-  border-top: 4px solid #4299e1;
-}
-
-.inventory-stat-card.total .stat-number,
-.inventory-stat-card.total .stat-icon {
-  color: #4299e1;
-}
-
-.inventory-stat-card.value {
-  border-top: 4px solid #9f7aea;
-}
-
-.inventory-stat-card.value .stat-number,
-.inventory-stat-card.value .stat-icon {
-  color: #9f7aea;
-}
-
-/* Modern Filters Section */
+/* Filters Section */
 .filters-section {
-  background-color: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05);
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .search-bar {
-  margin-bottom: 1.25rem;
-  position: relative;
+  flex: 1;
+  min-width: 200px;
+  margin-right: 15px;
 }
 
 .search-bar input {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 3rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 1rem;
-  color: #2d3748;
-  background-color: #f7fafc;
-  transition: all 0.3s;
-}
-
-.search-bar input:focus {
-  outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
-}
-
-.search-bar input::placeholder {
-  color: #a0aec0;
-}
-
-.search-bar::before {
-  content: "🔍";
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #a0aec0;
-  font-size: 1rem;
-  pointer-events: none;
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 .filter-options {
   display: flex;
+  gap: 10px;
   flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
 }
 
 .filter-options select {
-  padding: 0.75rem 1.5rem 0.75rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background-color: white;
-  font-size: 0.95rem;
-  min-width: 150px;
-  color: #2d3748;
-  font-weight: 500;
-  appearance: menulist;
-  transition: all 0.3s;
-}
-
-.filter-options select:focus {
-  outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
-}
-
-.filter-options select option {
   padding: 10px;
-  color: #2d3748;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   background-color: white;
+  font-size: 14px;
 }
 
-.add-inventory-btn {
-  margin-left: auto;
-  background-color: #48bb78;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
+.reset-filter-btn {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px 15px;
+  font-size: 14px;
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
 }
 
-.add-inventory-btn:hover {
-  background-color: #38a169;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.reset-filter-btn i {
+  margin-right: 5px;
 }
 
-.add-inventory-btn:active {
-  transform: translateY(0);
+.reset-filter-btn:hover {
+  background-color: #e0e0e0;
 }
 
-.reset-filters-btn {
-  padding: 0.75rem 1.5rem;
-  background-color: transparent;
-  color: #4a5568;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.95rem;
-  font-weight: 500;
+/* Purchases specific filters */
+.purchases-filters .filter-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.reset-filters-btn:hover {
-  background-color: #f7fafc;
-  color: #2d3748;
-}
-
-/* Enhanced Inventory Table */
-.inventory-table-container {
-  overflow-x: auto;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05);
-  margin-bottom: 1.5rem;
-}
-
-.inventory-table {
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-end;
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-group label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.date-inputs input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Tables */
+.table-container {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table thead th {
+  background-color: #f5f5f5;
   text-align: left;
-}
-
-.inventory-table th {
-  background-color: #f8fafc;
-  padding: 1.25rem 1rem;
+  padding: 12px 15px;
   font-weight: 600;
-  color: #4a5568;
-  border-bottom: 2px solid #e2e8f0;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  position: relative;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
 }
 
-.inventory-table th:hover {
-  background-color: #f1f5f9;
-  color: #2d3748;
+.data-table tbody tr {
+  border-bottom: 1px solid #eaeaea;
 }
 
-.inventory-table th.active-sort {
-  color: #4299e1;
+.data-table tbody tr:hover {
+  background-color: #f9f9f9;
 }
 
-.inventory-table th.active-sort::after {
-  content: "↓";
-  display: inline-block;
-  margin-left: 0.5rem;
-  font-size: 0.8rem;
+.data-table td {
+  padding: 12px 15px;
+  color: #555;
 }
 
-.inventory-table th.active-sort.desc::after {
-  content: "↑";
-}
-
-.inventory-table td {
-  padding: 1.25rem 1rem;
-  border-bottom: 1px solid #edf2f7;
-  vertical-align: middle;
-  color: #2d3748;
-  transition: all 0.2s;
-}
-
-.inventory-table tbody tr {
-  transition: all 0.2s;
-}
-
-.inventory-table tbody tr:hover {
-  background-color: #f7fafc;
-}
-
-.inventory-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-/* Improved Status badge */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 0.9rem;
-  border-radius: 9999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+.no-data {
   text-align: center;
-  white-space: nowrap;
+  color: #888;
+  padding: 30px 0;
 }
 
-.status-badge::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 0.5rem;
+/* Stock levels */
+.stock-level {
+  font-weight: 500;
 }
 
-.status-in-stock {
-  background-color: rgba(72, 187, 120, 0.1);
-  color: #2f855a;
+.low-stock {
+  color: #f44336;
 }
 
-.status-in-stock::before {
-  background-color: #48bb78;
+.medium-stock {
+  color: #ff9800;
 }
 
-.status-low-stock {
-  background-color: rgba(246, 173, 85, 0.1);
-  color: #c05621;
+.high-stock {
+  color: #4caf50;
 }
 
-.status-low-stock::before {
-  background-color: #f6ad55;
-}
-
-.status-out-of-stock {
-  background-color: rgba(245, 101, 101, 0.1);
-  color: #c53030;
-}
-
-.status-out-of-stock::before {
-  background-color: #f56565;
-}
-
-/* Status badges updated to match schema */
-.status-available {
-  background-color: rgba(72, 187, 120, 0.1);
-  color: #2f855a;
-}
-
-.status-available::before {
-  background-color: #48bb78;
-}
-
-.status-not_available {
-  background-color: rgba(246, 173, 85, 0.1);
-  color: #c05621;
-}
-
-.status-not_available::before {
-  background-color: #f6ad55;
-}
-
-.status-expired {
-  background-color: rgba(245, 101, 101, 0.1);
-  color: #c53030;
-}
-
-.status-expired::before {
-  background-color: #f56565;
-}
-
-/* Status Badge Styles */
-.status-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.status-badge.status-available,
-.status-badge[class*="active"] {
-  background-color: #c6f6d5;
-  color: #22543d;
-}
-
-.status-badge.status-not_available,
-.status-badge[class*="inactive"] {
-  background-color: #fed7d7;
-  color: #822727;
-}
-
-/* Date fields styling */
-.date-field {
-  font-size: 0.9rem;
-  color: #4a5568;
-}
-
-.date-expired {
-  color: #e53e3e;
-  font-weight: 600;
-}
-
-.date-warning {
-  color: #dd6b20;
-  font-weight: 600;
-}
-
-/* Enhanced Quantity Quick Edit */
-.quantity-cell {
+/* Actions */
+.action-buttons {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 8px;
 }
 
-.quantity-value {
-  min-width: 40px;
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.quantity-controls {
-  display: flex;
-  align-items: center;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.quantity-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: #f7fafc;
+.edit-btn, .delete-btn {
   border: none;
+  background: none;
+  font-size: 16px;
   cursor: pointer;
-  font-size: 1.1rem;
-  color: #4a5568;
-  transition: all 0.2s;
-}
-
-.quantity-btn:hover {
-  background-color: #edf2f7;
-  color: #2d3748;
-}
-
-.quantity-btn:active {
-  background-color: #e2e8f0;
-}
-
-.quantity-btn.decrement {
-  border-right: 1px solid #e2e8f0;
-}
-
-.quantity-btn.increment {
-  border-left: 1px solid #e2e8f0;
-}
-
-/* Better Actions Styling */
-.inventory-actions {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.edit-btn,
-.delete-btn {
-  padding: 0.5rem 0.9rem;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+  padding: 5px;
+  border-radius: 4px;
 }
 
 .edit-btn {
-  background-color: rgba(246, 173, 85, 0.1);
-  color: #c05621;
+  color: #2196f3;
 }
 
 .edit-btn:hover {
-  background-color: rgba(246, 173, 85, 0.2);
-  transform: translateY(-2px);
+  background-color: rgba(33, 150, 243, 0.1);
 }
 
 .delete-btn {
-  background-color: rgba(245, 101, 101, 0.1);
-  color: #c53030;
+  color: #f44336;
 }
 
 .delete-btn:hover {
-  background-color: rgba(245, 101, 101, 0.2);
-  transform: translateY(-2px);
+  background-color: rgba(244, 67, 54, 0.1);
 }
 
-/* Empty state styling */
-.no-items {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: #a0aec0;
-}
-
-.no-items-message {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-}
-
-/* Pagination styling */
-.pagination-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem 0;
-}
-
-.pagination-controls button {
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  color: #4a5568;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pagination-controls button:hover:not(:disabled) {
-  background-color: #f7fafc;
-  border-color: #cbd5e0;
-  color: #2d3748;
-}
-
-.pagination-controls button:disabled {
-  background-color: #f7fafc;
-  color: #cbd5e0;
-  cursor: not-allowed;
-}
-
-.pagination-controls span {
-  font-size: 0.95rem;
-  color: #4a5568;
-  font-weight: 500;
-}
-
-/* Enhanced Modal styles */
+/* Modals */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .modal-content {
   background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
   width: 90%;
-  max-width: 900px; /* Increased from default (likely 600px) */
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
   padding: 0;
-  animation: modalSlideIn 0.3s ease-out;
-}
-
-@keyframes modalSlideIn {
-  from { transform: translateY(30px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eaeaea;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.8rem 2.5rem; /* Larger padding */
-  border-bottom: 1px solid #e2e8f0;
 }
 
-.modal-header h2 {
+.modal-header h3 {
   margin: 0;
-  font-size: 1.8rem; /* Larger font size */
-  color: #2d3748;
-  font-weight: 700;
+  font-size: 18px;
+  color: #333;
 }
 
 .close-modal-btn {
   background: none;
   border: none;
-  font-size: 1.5rem;
-  line-height: 1;
+  font-size: 24px;
   cursor: pointer;
-  color: #a0aec0;
-  transition: color 0.2s;
+  color: #888;
 }
 
 .close-modal-btn:hover {
-  color: #4a5568;
+  color: #333;
 }
 
-.modal-body {
-  padding: 2.5rem; /* Larger padding */
+.modal-content form {
+  padding: 20px;
 }
 
-/* Increase size of supplier management modal */
-.modal-overlay .modal-content {
-  max-width: 1200px; /* Increased from default to make it much wider */
-  width: 90%;
-  max-height: 85vh; /* Increased height to take up more vertical space */
-}
-
-/* Make the supplier table container taller */
-.supplier-table-container {
-  max-height: 60vh; /* Allow more vertical space for the table */
-  overflow-y: auto;
-}
-
-/* Adjust the modal body padding for more content space */
-.modal-body {
-  padding: 2rem 2.5rem;
-}
-
-/* Make the form elements more spaced out */
-.supplier-form {
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  padding: 1rem;
-}
-
-/* Improved Form styles */
-.inventory-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
+/* Form styling */
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 15px;
 }
 
-.form-group.full-width {
-  grid-column: 1 / -1;
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #4a5568;
-  font-size: 0.95rem;
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: #555;
 }
 
-.form-group label .required {
-  color: #f56565;
-  margin-left: 0.25rem;
-}
-
-.form-group input,
-.form-group select,
+.form-group input, 
+.form-group select, 
 .form-group textarea {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  color: #2d3748;
-  transition: all 0.3s;
-  background-color: #f7fafc;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 .form-group textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 80px;
 }
 
-.form-group select {
-  appearance: menulist;
-}
-
-.form-group .form-hint {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-  color: #a0aec0;
+.readonly-input {
+  background-color: #f9f9f9;
+  cursor: not-allowed;
 }
 
 .form-actions {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  gap: 10px;
+  margin-top: 20px;
 }
 
-.cancel-btn,
-.save-btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
+.submit-btn, .cancel-btn {
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-size: 14px;
   cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.submit-btn {
+  background-color: #4caf50;
+  color: white;
   border: none;
-  transition: all 0.2s;
+}
+
+.submit-btn:hover {
+  background-color: #3d8b40;
 }
 
 .cancel-btn {
-  background-color: #f7fafc;
-  color: #4a5568;
-  border: 1px solid #e2e8f0;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  color: #555;
 }
 
 .cancel-btn:hover {
-  background-color: #edf2f7;
-  color: #2d3748;
+  background-color: #e0e0e0;
 }
 
-.save-btn {
-  background-color: #4299e1;
-  color: white;
-}
-
-.save-btn:hover {
-  background-color: #3182ce;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(66, 153, 225, 0.2);
-}
-
-.save-btn:active {
-  transform: translateY(0);
-}
-
-.save-btn:disabled {
-  background-color: #bee3f8;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Server status notification styling */
-.server-status-notification {
-  margin-bottom: 2rem;
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: #feebcb;
-  border-left: 4px solid #ed8936;
-}
-
-.server-status-notification p {
-  margin: 0;
-  color: #c05621;
-  font-size: 0.95rem;
-}
-
-.server-status-notification button {
-  background-color: #ed8936;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.server-status-notification button:hover {
-  background-color: #dd6b20;
-}
-
-/* Loading indicator */
-.loading {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: #a0aec0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.loading-spinner {
+/* Supplier status badges */
+.status-badge {
   display: inline-block;
-  width: 50px;
-  height: 50px;
-  border: 3px solid rgba(66, 153, 225, 0.2);
-  border-radius: 50%;
-  border-top-color: #4299e1;
-  animation: spin 1s ease-in-out infinite;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.status-active {
+  background-color: #e8f5e9;
+  color: #2e7d32;
 }
 
-/* Supplier Management Button */
-.manage-suppliers-btn {
-  background-color: #4299e1;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
+.status-inactive {
+  background-color: #fbe9e7;
+  color: #d32f2f;
 }
 
-.manage-suppliers-btn:hover {
-  background-color: #3182ce;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.manage-suppliers-btn:active {
-  transform: translateY(0);
-}
-
-/* Supplier List Styling */
-.supplier-list-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1.5rem;
-}
-
-.supplier-table-container {
-  overflow-x: auto;
-  background-color: white;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.supplier-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  text-align: left;
-}
-
-.supplier-table th {
-  background-color: #f8fafc;
-  padding: 1.25rem 1rem; /* Increased padding for more spaciousness */
-  font-weight: 600;
-  color: #4a5568;
-  border-bottom: 2px solid #e2e8f0;
+/* Address and notes cells */
+.address-cell, .notes-cell {
+  max-width: 200px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.supplier-table td {
-  padding: 1.25rem 1rem; /* Increased padding for more spaciousness */
-  border-bottom: 1px solid #edf2f7;
-  vertical-align: middle;
-  color: #2d3748;
-}
-
-.supplier-table tbody tr {
-  transition: all 0.2s;
-}
-
-.supplier-table tbody tr:hover {
-  background-color: #f7fafc;
-}
-
-.supplier-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.supplier-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* Supplier Form */
-.supplier-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem; /* Increased gap between form elements */
-  padding: 1rem;
-}
-
-.supplier-form .form-group.full-width {
-  grid-column: 1 / -1;
-}
-
-.supplier-form .form-group {
-  margin-bottom: 1.5rem; /* Added margin to create more vertical space */
-}
-
-.add-button {
-  background-color: #48bb78;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
-}
-
-.add-button:hover {
-  background-color: #38a169;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Add styles for the no suppliers message */
-.no-suppliers-message {
-  text-align: center;
-  padding: 3rem 2rem;
-  background-color: #f8fafc;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-}
-
-.no-suppliers-message p {
-  color: #718096;
-  margin-bottom: 1.5rem;
-  font-size: 1.1rem;
-}
-
-.retry-button {
-  background-color: #4299e1;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
-  font-size: 0.95rem;
-  margin: 0 auto;
-  display: block;
-}
-
-.retry-button:hover {
-  background-color: #3182ce;
-  transform: translateY(-2px);
-}
-
-/* Add styles for the supplier list header and refresh button */
-.supplier-list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.refresh-button {
-  background-color: #6366f1;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.refresh-button:hover {
-  background-color: #4f46e5;
-  transform: translateY(-2px);
-}
-
-.refresh-button:disabled {
-  background-color: #a5b4fc;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Loading spinner container for suppliers */
-.loading-spinner-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-}
-
-.loading-spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 2s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+/* Inactive row styling */
+.inactive-row {
+  opacity: 0.6;
+  background-color: #f5f5f5;
 }
