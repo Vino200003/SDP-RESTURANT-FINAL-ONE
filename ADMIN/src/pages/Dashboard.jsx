@@ -18,8 +18,8 @@ function Dashboard() {
     ordersToday: 0,
     revenueToday: 0,
     reservationsToday: 0,
-    ordersTrend: 0, // percentage change from yesterday
-    revenueTrend: 0, // percentage change from yesterday
+    ordersTrend: 0,
+    revenueTrend: 0,
   });
   
   // Initialize API services
@@ -27,55 +27,96 @@ function Dashboard() {
 
   // Fetch dashboard stats on component mount
   useEffect(() => {
-    fetchDashboardStats();
+    const fetchStats = async () => {
+      try {
+        await fetchDashboardStats();
+      } catch (error) {
+        console.error('Dashboard stats fetch failed:', error);
+      } finally {
+        // Ensure loading state is cleared even if there are errors
+        setIsLoading(false);
+      }
+    };
+    
+    fetchStats();
+    
+    // Set up refresh interval - update stats every 5 minutes
+    const intervalId = setInterval(() => {
+      fetchStats();
+    }, 5 * 60 * 1000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
-  // Function to fetch all dashboard stats
+  // Function to fetch all dashboard stats with improved error handling
   const fetchDashboardStats = async () => {
     setIsLoading(true);
     
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Calculate yesterday's date
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    // Initialize with default values
+    let todayOrdersData = { total_orders: 0, total_revenue: 0 };
+    let yesterdayOrdersData = { total_orders: 0, total_revenue: 0 };
+    let reservationsData = { total_reservations: 0 };
+    
+    // Separate try/catch blocks to prevent one failure from stopping others
     try {
-      // Get today's date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Calculate yesterday's date
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      // Fetch today's orders
-      const todayOrdersData = await orderService.getOrderStats(today, today);
-      
-      // Fetch yesterday's orders for comparison
-      const yesterdayOrdersData = await orderService.getOrderStats(yesterdayStr, yesterdayStr);
-      
-      // Fetch today's reservations
-      const reservationsData = await reservationService.getReservationStats(today, today);
-      
-      // Calculate percentage changes (avoid division by zero)
-      const ordersTrend = yesterdayOrdersData.total_orders > 0 
-        ? ((todayOrdersData.total_orders - yesterdayOrdersData.total_orders) / yesterdayOrdersData.total_orders) * 100 
-        : 0;
-        
-      const revenueTrend = yesterdayOrdersData.total_revenue > 0 
-        ? ((todayOrdersData.total_revenue - yesterdayOrdersData.total_revenue) / yesterdayOrdersData.total_revenue) * 100 
-        : 0;
-      
-      // Update stats state
-      setStats({
-        ordersToday: todayOrdersData.total_orders || 0,
-        revenueToday: todayOrdersData.total_revenue || 0,
-        reservationsToday: reservationsData.total_reservations || 0,
-        ordersTrend: ordersTrend,
-        revenueTrend: revenueTrend,
-      });
-      
+      const response = await orderService.getOrderStats(today, today);
+      if (response) todayOrdersData = response;
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      // Keep default values in case of error
-    } finally {
-      setIsLoading(false);
+      console.warn('Error fetching today\'s orders stats, using defaults');
     }
+    
+    try {
+      const response = await orderService.getOrderStats(yesterdayStr, yesterdayStr);
+      if (response) yesterdayOrdersData = response;
+    } catch (error) {
+      console.warn('Error fetching yesterday\'s orders stats, using defaults');
+    }
+    
+    try {
+      const response = await reservationService.getReservationStats(today, today);
+      if (response) reservationsData = response;
+    } catch (error) {
+      console.warn('Error fetching reservations stats, using defaults');
+    }
+    
+    // Helper for safe percentage calculation
+    const calcPercentChange = (current, previous) => {
+      current = parseInt(current) || 0;
+      previous = parseInt(previous) || 0;
+      if (previous === 0) return 0;
+      return ((current - previous) / previous) * 100;
+    };
+    
+    // Calculate trends with safety checks
+    const ordersTrend = calcPercentChange(
+      todayOrdersData.total_orders, 
+      yesterdayOrdersData.total_orders
+    );
+    
+    const revenueTrend = calcPercentChange(
+      todayOrdersData.total_revenue, 
+      yesterdayOrdersData.total_revenue
+    );
+    
+    // Update stats state with safe parsing to ensure numeric values
+    setStats({
+      ordersToday: parseInt(todayOrdersData.total_orders || 0),
+      revenueToday: parseFloat(todayOrdersData.total_revenue || 0),
+      reservationsToday: parseInt(reservationsData.total_reservations || 0),
+      ordersTrend,
+      revenueTrend,
+    });
+    
+    setIsLoading(false);
   };
 
   // Format currency
@@ -83,8 +124,8 @@ function Dashboard() {
     return new Intl.NumberFormat('en-LK', {
       style: 'currency',
       currency: 'LKR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
