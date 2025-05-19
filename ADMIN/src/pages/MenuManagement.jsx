@@ -746,6 +746,7 @@ function MenuManagement() {
           <div className="modal-overlay">
             <div className="modal-content">
               <h2>Add New Menu Item</h2>
+              
               <div className="form-group">
                 <label>Item Name</label>
                 <input 
@@ -755,16 +756,31 @@ function MenuManagement() {
                   placeholder="Enter item name"
                 />
               </div>
-              <div className="form-group">
-                <label>Price</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  value={newItem.price}
-                  onChange={(e) => setNewItem({...newItem, price: e.target.value})}
-                  placeholder="Enter price"
-                />
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Price</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={newItem.price}
+                    onChange={(e) => setNewItem({...newItem, price: e.target.value})}
+                    placeholder="Enter price"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Status</label>
+                  <select
+                    value={newItem.status}
+                    onChange={(e) => setNewItem({...newItem, status: e.target.value})}
+                  >
+                    <option value="available">Available</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                  </select>
+                </div>
               </div>
+              
               <div className="form-group">
                 <label>Description</label>
                 <textarea 
@@ -774,47 +790,42 @@ function MenuManagement() {
                   rows="3"
                 ></textarea>
               </div>
-              <div className="form-group">
-                <label>Category</label>
-                <select
-                  value={newItem.category_code}
-                  onChange={(e) => handleCategorySelect(e.target.value)}
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(category => (
-                    <option key={category.category_code} value={category.category_code}>
-                      {category.category_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Subcategory</label>
-                <select
-                  value={newItem.subcategory_code}
-                  onChange={(e) => setNewItem({...newItem, subcategory_code: parseInt(e.target.value)})}
-                  disabled={!newItem.category_code}
-                >
-                  <option value="">Select Subcategory</option>
-                  {subcategories
-                    .filter(sub => !newItem.category_code || sub.category_code === newItem.category_code)
-                    .map(subcategory => (
-                      <option key={subcategory.subcategory_code} value={subcategory.subcategory_code}>
-                        {subcategory.subcategory_name}
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Category</label>
+                  <select
+                    value={newItem.category_code}
+                    onChange={(e) => handleCategorySelect(e.target.value)}
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(category => (
+                      <option key={category.category_code} value={category.category_code}>
+                        {category.category_name}
                       </option>
                     ))}
-                </select>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Subcategory</label>
+                  <select
+                    value={newItem.subcategory_code}
+                    onChange={(e) => setNewItem({...newItem, subcategory_code: parseInt(e.target.value)})}
+                    disabled={!newItem.category_code}
+                  >
+                    <option value="">Select Subcategory</option>
+                    {subcategories
+                      .filter(sub => !newItem.category_code || sub.category_code === newItem.category_code)
+                      .map(subcategory => (
+                        <option key={subcategory.subcategory_code} value={subcategory.subcategory_code}>
+                          {subcategory.subcategory_name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Status</label>
-                <select
-                  value={newItem.status}
-                  onChange={(e) => setNewItem({...newItem, status: e.target.value})}
-                >
-                  <option value="available">Available</option>
-                  <option value="out_of_stock">Out of Stock</option>
-                </select>
-              </div>
+              
               <div className="form-group">
                 <label>Image URL</label>
                 <input 
@@ -825,6 +836,7 @@ function MenuManagement() {
                 />
                 <small className="form-hint">Use a complete URL including http:// or https://</small>
               </div>
+              
               <div className="modal-buttons">
                 <button 
                   className="cancel-button"
@@ -848,6 +860,7 @@ function MenuManagement() {
           <div className="modal-overlay">
             <div className="modal-content">
               <h2>Edit Menu Item</h2>
+              
               <div className="form-group">
                 <label>Item Name</label>
                 <input 
@@ -856,15 +869,30 @@ function MenuManagement() {
                   onChange={(e) => setCurrentItem({...currentItem, menu_name: e.target.value})}
                 />
               </div>
-              <div className="form-group">
-                <label>Price</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  value={currentItem.price || ''}
-                  onChange={(e) => setCurrentItem({...currentItem, price: e.target.value})}
-                />
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Price</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={currentItem.price || ''}
+                    onChange={(e) => setCurrentItem({...currentItem, price: e.target.value})}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Status</label>
+                  <select
+                    value={currentItem.status || 'available'}
+                    onChange={(e) => setCurrentItem({...currentItem, status: e.target.value})}
+                  >
+                    <option value="available">Available</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                  </select>
+                </div>
               </div>
+              
               <div className="form-group">
                 <label>Description</label>
                 <textarea 
@@ -874,54 +902,49 @@ function MenuManagement() {
                   rows="3"
                 ></textarea>
               </div>
-              <div className="form-group">
-                <label>Category</label>
-                <select
-                  value={currentItem.category_code || ''}
-                  onChange={(e) => setCurrentItem({
-                    ...currentItem, 
-                    category_code: e.target.value ? parseInt(e.target.value) : '',
-                    subcategory_code: '' // Reset subcategory when category changes
-                  })}
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(category => (
-                    <option key={category.category_code} value={category.category_code}>
-                      {category.category_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Subcategory</label>
-                <select
-                  value={currentItem.subcategory_code || ''}
-                  onChange={(e) => setCurrentItem({
-                    ...currentItem, 
-                    subcategory_code: e.target.value ? parseInt(e.target.value) : ''
-                  })}
-                  disabled={!currentItem.category_code}
-                >
-                  <option value="">Select Subcategory</option>
-                  {subcategories
-                    .filter(sub => sub.category_code === currentItem.category_code)
-                    .map(subcategory => (
-                      <option key={subcategory.subcategory_code} value={subcategory.subcategory_code}>
-                        {subcategory.subcategory_name}
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Category</label>
+                  <select
+                    value={currentItem.category_code || ''}
+                    onChange={(e) => setCurrentItem({
+                      ...currentItem, 
+                      category_code: e.target.value ? parseInt(e.target.value) : '',
+                      subcategory_code: '' // Reset subcategory when category changes
+                    })}
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map(category => (
+                      <option key={category.category_code} value={category.category_code}>
+                        {category.category_name}
                       </option>
                     ))}
-                </select>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Subcategory</label>
+                  <select
+                    value={currentItem.subcategory_code || ''}
+                    onChange={(e) => setCurrentItem({
+                      ...currentItem, 
+                      subcategory_code: e.target.value ? parseInt(e.target.value) : ''
+                    })}
+                    disabled={!currentItem.category_code}
+                  >
+                    <option value="">Select Subcategory</option>
+                    {subcategories
+                      .filter(sub => sub.category_code === currentItem.category_code)
+                      .map(subcategory => (
+                        <option key={subcategory.subcategory_code} value={subcategory.subcategory_code}>
+                          {subcategory.subcategory_name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Status</label>
-                <select
-                  value={currentItem.status || 'available'}
-                  onChange={(e) => setCurrentItem({...currentItem, status: e.target.value})}
-                >
-                  <option value="available">Available</option>
-                  <option value="out_of_stock">Out of Stock</option>
-                </select>
-              </div>
+              
               <div className="form-group">
                 <label>Image URL</label>
                 <input 
@@ -932,6 +955,7 @@ function MenuManagement() {
                 />
                 <small className="form-hint">Use a complete URL including http:// or https://</small>
               </div>
+              
               <div className="modal-buttons">
                 <button 
                   className="cancel-button"
