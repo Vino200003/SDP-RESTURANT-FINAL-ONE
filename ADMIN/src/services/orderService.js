@@ -148,3 +148,118 @@ export const updateOrderStatus = async (orderId, newStatus) => {
     throw error;
   }
 };
+
+// Get count of new orders that need attention
+export const getNewOrdersCount = async () => {
+  try {
+    const token = localStorage.getItem('adminToken');
+    
+    const response = await fetch(`${API_URL}/api/orders/new/count`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      // If API endpoint doesn't exist yet, use a fallback mechanism
+      console.warn('New orders count API not available, using fallback');
+      return getFallbackOrdersCount();
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting new orders count:', error);
+    // Use fallback on any error
+    return getFallbackOrdersCount();
+  }
+};
+
+// Fallback to get new orders count if API endpoint isn't ready
+const getFallbackOrdersCount = async () => {
+  try {
+    // Fetch all orders and filter for pending ones
+    const response = await getAllOrders({ status: 'Pending', limit: 100 });
+    
+    // If we have orders data with pagination
+    if (response && response.orders) {
+      const pendingOrders = response.orders.filter(
+        order => order.order_status === 'Pending'
+      );
+      
+      // Get the timestamp of the most recent order
+      let lastOrderTime = new Date().toISOString();
+      if (pendingOrders.length > 0) {
+        // Sort orders by creation date (newest first)
+        pendingOrders.sort((a, b) => 
+          new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        );
+        lastOrderTime = pendingOrders[0].created_at || lastOrderTime;
+      }
+      
+      return { 
+        count: pendingOrders.length,
+        lastOrderTime
+      };
+    }
+    
+    // If we have just an array of orders
+    if (Array.isArray(response)) {
+      const pendingOrders = response.filter(
+        order => order.order_status === 'Pending'
+      );
+      
+      // Get the timestamp of the most recent order
+      let lastOrderTime = new Date().toISOString();
+      if (pendingOrders.length > 0) {
+        // Sort orders by creation date (newest first)
+        pendingOrders.sort((a, b) => 
+          new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        );
+        lastOrderTime = pendingOrders[0].created_at || lastOrderTime;
+      }
+      
+      return { 
+        count: pendingOrders.length,
+        lastOrderTime
+      };
+    }
+    
+    return { 
+      count: 0,
+      lastOrderTime: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Error in fallback orders count:', error);
+    return { 
+      count: 0,
+      lastOrderTime: new Date().toISOString()
+    };
+  }
+};
+
+// Mark orders as read
+export const markOrdersAsRead = async () => {
+  try {
+    const token = localStorage.getItem('adminToken');
+    
+    const response = await fetch(`${API_URL}/api/orders/mark-read`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.warn('Mark orders as read API not available');
+      return { success: false };
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error marking orders as read:', error);
+    return { success: false };
+  }
+};

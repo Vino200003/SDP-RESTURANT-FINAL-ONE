@@ -3,24 +3,101 @@ import { useAuth } from '../context/AuthContext';
 import useApiServices from '../hooks/useApiServices';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
+import RecentOrders from '../components/RecentOrders';
+import RecentReservations from '../components/RecentReservations';
+import * as orderService from '../services/orderService';
+import * as reservationService from '../services/reservationService';
 import '../styles/Dashboard.css';
 
 function Dashboard() {
   const { user, isAuthenticated } = useAuth();
-  const [dashboardData, setDashboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // State for dashboard stats
+  const [stats, setStats] = useState({
+    ordersToday: 0,
+    revenueToday: 0,
+    reservationsToday: 0,
+    ordersTrend: 0, // percentage change from yesterday
+    revenueTrend: 0, // percentage change from yesterday
+  });
   
   // Initialize API services
   useApiServices();
 
-  // Sample useEffect for demonstration
+  // Fetch dashboard stats on component mount
   useEffect(() => {
-    // Log authentication status for debugging
-    console.log('Dashboard mounted. Auth status:', isAuthenticated);
+    fetchDashboardStats();
+  }, []);
+
+  // Function to fetch all dashboard stats
+  const fetchDashboardStats = async () => {
+    setIsLoading(true);
     
-    // Your existing data fetching logic...
-    
-  }, [isAuthenticated]);
+    try {
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Calculate yesterday's date
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      // Fetch today's orders
+      const todayOrdersData = await orderService.getOrderStats(today, today);
+      
+      // Fetch yesterday's orders for comparison
+      const yesterdayOrdersData = await orderService.getOrderStats(yesterdayStr, yesterdayStr);
+      
+      // Fetch today's reservations
+      const reservationsData = await reservationService.getReservationStats(today, today);
+      
+      // Calculate percentage changes (avoid division by zero)
+      const ordersTrend = yesterdayOrdersData.total_orders > 0 
+        ? ((todayOrdersData.total_orders - yesterdayOrdersData.total_orders) / yesterdayOrdersData.total_orders) * 100 
+        : 0;
+        
+      const revenueTrend = yesterdayOrdersData.total_revenue > 0 
+        ? ((todayOrdersData.total_revenue - yesterdayOrdersData.total_revenue) / yesterdayOrdersData.total_revenue) * 100 
+        : 0;
+      
+      // Update stats state
+      setStats({
+        ordersToday: todayOrdersData.total_orders || 0,
+        revenueToday: todayOrdersData.total_revenue || 0,
+        reservationsToday: reservationsData.total_reservations || 0,
+        ordersTrend: ordersTrend,
+        revenueTrend: revenueTrend,
+      });
+      
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      // Keep default values in case of error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  // Format trend with up/down arrow
+  const formatTrend = (value) => {
+    if (value > 0) {
+      return <span className="positive">↑ {Math.abs(value).toFixed(1)}%</span>;
+    } else if (value < 0) {
+      return <span className="negative">↓ {Math.abs(value).toFixed(1)}%</span>;
+    } else {
+      return <span className="neutral">0%</span>;
+    }
+  };
 
   // Additional user welcome message showing successful authentication
   const welcomeMessage = user ? `Welcome back, ${user.first_name} ${user.last_name}!` : 'Welcome to the Dashboard!';
@@ -43,123 +120,35 @@ function Dashboard() {
           </div>
           
           <div className="dashboard-stats">
-            {/* Sample stats cards */}
             <div className="stat-card orders">
               <h3>Orders Today</h3>
-              <p className="stat-number">24</p>
-              <p className="stat-info">↑ 12% from yesterday</p>
+              <p className="stat-number">{isLoading ? '...' : stats.ordersToday}</p>
+              <p className="stat-info">
+                {isLoading ? '...' : formatTrend(stats.ordersTrend)} from yesterday
+              </p>
             </div>
             
             <div className="stat-card revenue">
               <h3>Today's Revenue</h3>
-              <p className="stat-number">Rs. 45,250</p>
-              <p className="stat-info">↑ 8% from yesterday</p>
+              <p className="stat-number">
+                {isLoading ? '...' : formatCurrency(stats.revenueToday)}
+              </p>
+              <p className="stat-info">
+                {isLoading ? '...' : formatTrend(stats.revenueTrend)} from yesterday
+              </p>
             </div>
             
             <div className="stat-card reservations">
               <h3>Reservations</h3>
-              <p className="stat-number">12</p>
+              <p className="stat-number">{isLoading ? '...' : stats.reservationsToday}</p>
               <p className="stat-info">For today</p>
-            </div>
-            
-            <div className="stat-card inventory">
-              <h3>Low Stock Items</h3>
-              <p className="stat-number">5</p>
-              <p className="stat-info">Need attention</p>
             </div>
           </div>
         </div>
         
         <div className="dashboard-sections">
-          <div className="dashboard-section">
-            <div className="section-header">
-              <h3>Recent Orders</h3>
-              <button className="view-all-btn">View All</button>
-            </div>
-            <div className="section-content">
-              <table className="dashboard-table">
-                <thead>
-                  <tr>
-                    <th>Order ID</th>
-                    <th>Customer</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>#1082</td>
-                    <td>John Smith</td>
-                    <td>Rs. 1,250</td>
-                    <td><span className="status-badge status-completed">Completed</span></td>
-                    <td>10:30 AM</td>
-                  </tr>
-                  <tr>
-                    <td>#1081</td>
-                    <td>Emily Johnson</td>
-                    <td>Rs. 850</td>
-                    <td><span className="status-badge status-processing">In Progress</span></td>
-                    <td>10:15 AM</td>
-                  </tr>
-                  <tr>
-                    <td>#1080</td>
-                    <td>Michael Brown</td>
-                    <td>Rs. 2,100</td>
-                    <td><span className="status-badge status-pending">Pending</span></td>
-                    <td>09:50 AM</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <div className="dashboard-section">
-            <div className="section-header">
-              <h3>Today's Reservations</h3>
-              <button className="view-all-btn">View All</button>
-            </div>
-            <div className="section-content">
-              <table className="dashboard-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Customer</th>
-                    <th>Time</th>
-                    <th>Table</th>
-                    <th>Guests</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>#506</td>
-                    <td>Sophia Wilson</td>
-                    <td>7:00 PM</td>
-                    <td>Table 5</td>
-                    <td>4</td>
-                    <td><span className="status-badge status-confirmed">Confirmed</span></td>
-                  </tr>
-                  <tr>
-                    <td>#505</td>
-                    <td>Robert Davis</td>
-                    <td>6:30 PM</td>
-                    <td>Table 12</td>
-                    <td>2</td>
-                    <td><span className="status-badge status-confirmed">Confirmed</span></td>
-                  </tr>
-                  <tr>
-                    <td>#504</td>
-                    <td>Olivia Taylor</td>
-                    <td>7:30 PM</td>
-                    <td>Table 8</td>
-                    <td>6</td>
-                    <td><span className="status-badge status-pending">Pending</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <RecentOrders />
+          <RecentReservations />
         </div>
       </main>
     </div>

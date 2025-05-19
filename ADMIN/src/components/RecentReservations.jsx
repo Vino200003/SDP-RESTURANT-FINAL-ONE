@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getAllReservations } from '../services/reservationService';
-import '../styles/RecentOrders.css'; // Reuse the same CSS for consistent styling
+import { getAllReservations, getReservationStatus } from '../services/reservationService';
+import '../styles/RecentReservations.css';
 
 function RecentReservations() {
   const [reservations, setReservations] = useState([]);
@@ -20,10 +20,9 @@ function RecentReservations() {
       if (response && response.reservations) {
         setReservations(response.reservations);
       } else if (Array.isArray(response)) {
-        // Handle case where API returns array directly
+        // Handle case where the API returns an array directly
         setReservations(response.slice(0, 5));
       } else {
-        // Handle case where the API doesn't return expected data
         setReservations([]);
       }
       
@@ -72,16 +71,8 @@ function RecentReservations() {
     }
   };
   
-  // Get the status from the reservation object, handling different field names
-  const getReservationStatus = (reservation) => {
-    return reservation.status || 
-           reservation.reservation_status || 
-           reservation.reserve_status || 
-           'Pending';
-  };
-  
   return (
-    <div className="recent-orders-card">
+    <div className="recent-reservations-card">
       <div className="card-header">
         <h2>Today's Reservations</h2>
         <button className="view-all-button" onClick={fetchRecentReservations}>Refresh</button>
@@ -95,11 +86,12 @@ function RecentReservations() {
           <button onClick={fetchRecentReservations} className="retry-button">Retry</button>
         </div>
       ) : reservations.length > 0 ? (
-        <table className="orders-table">
+        <table className="reservations-table">
           <thead>
             <tr>
               <th>ID</th>
               <th>Customer</th>
+              <th>Date</th>
               <th>Time</th>
               <th>Table</th>
               <th>Guests</th>
@@ -108,20 +100,20 @@ function RecentReservations() {
           </thead>
           <tbody>
             {reservations.map((reservation) => {
-              const id = reservation.reserve_id || reservation.reservation_id;
               const status = getReservationStatus(reservation);
-              const name = reservation.customer_name || 
-                          (reservation.first_name || reservation.last_name ? 
-                            `${reservation.first_name || ''} ${reservation.last_name || ''}`.trim() : 
-                            'Guest');
-              
               return (
-                <tr key={id}>
-                  <td>{id}</td>
-                  <td>{name}</td>
+                <tr key={reservation.reserve_id || reservation.reservation_id}>
+                  <td>{reservation.reserve_id || reservation.reservation_id}</td>
+                  <td>
+                    {reservation.customer_name || 
+                      (reservation.first_name || reservation.last_name ? 
+                        `${reservation.first_name || ''} ${reservation.last_name || ''}`.trim() : 
+                        `User ${reservation.user_id}` || 'Guest')}
+                  </td>
+                  <td>{formatDateOnly(reservation.date_time)}</td>
                   <td>{formatDate(reservation.date_time)}</td>
                   <td>Table {reservation.table_no}</td>
-                  <td>{reservation.guests || reservation.capacity || 2}</td>
+                  <td>{reservation.guests || reservation.capacity || 'N/A'}</td>
                   <td>
                     <span className={`status-badge ${getStatusClass(status)}`}>
                       {status}
@@ -133,8 +125,8 @@ function RecentReservations() {
           </tbody>
         </table>
       ) : (
-        <div className="no-orders-message">
-          No upcoming reservations found. New reservations will appear here.
+        <div className="no-reservations-message">
+          No reservations found for today. New reservations will appear here.
         </div>
       )}
     </div>

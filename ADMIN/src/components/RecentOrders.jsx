@@ -87,7 +87,7 @@ function RecentOrders() {
           <tbody>
             {orders.map((order) => (
               <tr key={order.order_id}>
-                <td>#{order.order_id}</td>
+                <td>{order.order_id}</td>
                 <td>{order.first_name} {order.last_name || ''}</td>
                 <td>{formatDate(order.created_at)}</td>
                 <td>Rs. {parseFloat(order.total_amount).toFixed(2)}</td>
