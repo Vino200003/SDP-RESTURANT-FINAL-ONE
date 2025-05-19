@@ -145,6 +145,33 @@ exports.createOrder = (req, res) => {
     return res.status(400).json({ message: 'Delivery address is required for delivery orders' });
   }
   
+  // Import the operating hours controller to check if restaurant is open
+  const { isRestaurantOpenNow } = require('../controllers/operatingHoursController');
+  
+  // Check if the restaurant is open before creating the order
+  isRestaurantOpenNow()
+    .then(({ isOpen, reason, openTime, closeTime }) => {
+      // If restaurant is closed, reject the order
+      if (!isOpen) {
+        return res.status(403).json({ 
+          message: 'Cannot place order at this time', 
+          reason,
+          openTime,
+          closeTime
+        });
+      }
+      
+      // Continue with order creation if restaurant is open
+      proceedWithOrderCreation();
+    })
+    .catch(error => {
+      console.error('Error checking restaurant hours:', error);
+      // In case of error checking hours, proceed with order for better user experience
+      proceedWithOrderCreation();
+    });
+    
+  function proceedWithOrderCreation() {
+  
   // Extract menu IDs to validate
   const menuIds = items.map(item => item.menu_id);
   
@@ -292,13 +319,13 @@ exports.createOrder = (req, res) => {
                 message: 'Order created successfully',
                 order_id,
                 total_amount: calculatedTotal
-              });
-            });
+              });            });
           });
         });
-      }
+      } // End of continueCreateOrder function
     });
-  });
+  }); // End of db.query for zone validation
+  } // End of proceedWithOrderCreation function
 };
 
 // Update order status

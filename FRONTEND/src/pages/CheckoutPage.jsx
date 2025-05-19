@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Footer from '../components/Footer';
 import { getUserProfile, getDeliveryZones } from '../utils/api';
 import '../styles/CheckoutPage.css';
+import '../styles/restaurantClosed.css';
 
 const CheckoutPage = () => {
   // State for checkout data
@@ -712,7 +713,24 @@ const CheckoutPage = () => {
           <div className="checkout-content-wrapper">
             {orderError && (
               <div className="error-message order-error">
-                {orderError}
+                {orderError.includes('Restaurant is currently closed') ? (
+                  <div className="restaurant-closed-message">
+                    <i className="fas fa-clock"></i>
+                    <h3>Restaurant is Currently Closed</h3>
+                    <p>{orderError}</p>
+                    <div className="operating-hours-info">
+                      <p>Please note our operating hours and try again during our business hours.</p>
+                      <button 
+                        className="view-hours-btn"
+                        onClick={() => window.navigateTo ? window.navigateTo('/contact') : window.location.href = '/contact'}
+                      >
+                        View Our Operating Hours
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  orderError
+                )}
               </div>
             )}
             

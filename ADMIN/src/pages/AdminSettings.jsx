@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
+import OperatingHours from '../components/OperatingHours';
 import { 
   getAdminProfile, 
   updateAdminProfile, 
@@ -696,6 +697,12 @@ function AdminSettings() {
               )}
             </div>
           )}
+          
+          {/* Restaurant Operating Hours Section */}
+          <div className="admin-profile-card">
+            <h2>Restaurant Operating Hours</h2>
+            <OperatingHours />
+          </div>
           
           {/* For non-super admins, show message about admin permissions */}
           {!isSuperAdmin && (

@@ -1,0 +1,59 @@
+/* Custom Restaurant Closed Message Styling */
+.error-message.order-error {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  padding: 15px;
+  background-color: #fee2e2;
+  border: 1px solid #f87171;
+  color: #b91c1c;
+}
+
+.restaurant-closed-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  text-align: center;
+}
+
+.restaurant-closed-message i {
+  font-size: 40px;
+  margin-bottom: 15px;
+  color: #b91c1c;
+}
+
+.restaurant-closed-message h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.restaurant-closed-message p {
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.operating-hours-info {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px dashed #d1d5db;
+  width: 100%;
+}
+
+.view-hours-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 8px 20px;
+  background-color: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.view-hours-btn:hover {
+  background-color: #d97706;
+}
