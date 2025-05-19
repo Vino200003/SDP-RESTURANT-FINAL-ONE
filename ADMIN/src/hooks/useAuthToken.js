@@ -10,20 +10,19 @@ import { setAuthTokenGetter as setInventoryAuthTokenGetter } from '../services/i
  */
 const useAuthToken = () => {
   const { getToken } = useAuth();
-  
-  useEffect(() => {
+    useEffect(() => {
     // Set the token getter for each service
     setReservationAuthTokenGetter(getToken);
     
-    // Uncomment these lines after implementing setAuthTokenGetter in these services
-    // setOrderAuthTokenGetter(getToken);
-    // setInventoryAuthTokenGetter(getToken);
+    // Now that we have implemented setAuthTokenGetter in these services
+    setOrderAuthTokenGetter(getToken);
+    setInventoryAuthTokenGetter(getToken);
     
     return () => {
       // Clean up (optional)
       setReservationAuthTokenGetter(null);
-      // setOrderAuthTokenGetter(null);
-      // setInventoryAuthTokenGetter(null);
+      setOrderAuthTokenGetter(null);
+      setInventoryAuthTokenGetter(null);
     };
   }, [getToken]);
 };

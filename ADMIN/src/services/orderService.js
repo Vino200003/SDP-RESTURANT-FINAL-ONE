@@ -1,5 +1,13 @@
 import { API_URL } from '../config/constants';
 
+// Auth token getter function - will be set by the component using this service
+let getAuthToken = null;
+
+// Function to set the auth token getter
+export const setAuthTokenGetter = (tokenGetter) => {
+  getAuthToken = tokenGetter;
+};
+
 // Get all orders with optional filters
 export const getAllOrders = async (filters = {}) => {
   try {

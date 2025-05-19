@@ -3,6 +3,14 @@ import axios from 'axios';
 // Fix the process.env reference by using a hardcoded URL
 const API_URL = 'http://localhost:5000/api';
 
+// Auth token getter function - will be set by the component using this service
+let getAuthToken = null;
+
+// Function to set the auth token getter
+export const setAuthTokenGetter = (tokenGetter) => {
+  getAuthToken = tokenGetter;
+};
+
 // ==================== Ingredients API ====================
 export const getAllIngredients = async () => {
   try {

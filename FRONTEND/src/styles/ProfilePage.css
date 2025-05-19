@@ -355,12 +355,12 @@
   font-weight: 600;
 }
 
-.order-date, .reservation-date, .reservation-time {
-  width: 15%;
+.order-date, .reservation-date, .reservation-time, .reservation-duration {
+  width: 12%;
 }
 
 .order-total, .reservation-guests {
-  width: 15%;
+  width: 12%;
   font-weight: 600;
 }
 

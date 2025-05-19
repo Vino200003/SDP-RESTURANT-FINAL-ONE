@@ -331,12 +331,12 @@ const ProfilePage = () => {
       setSelectedReservation(reservation);
       
       // Initialize edited data with current values
-      const reservationDate = new Date(reservation.date_time);
-      setEditedReservationData({
+      const reservationDate = new Date(reservation.date_time);      setEditedReservationData({
         date: reservationDate.toISOString().split('T')[0],
         time: `${reservationDate.getHours()}:${String(reservationDate.getMinutes()).padStart(2, '0')}`,
         table_no: reservation.table_no,
-        special_requests: reservation.special_requests || ''
+        special_requests: reservation.special_requests || '',
+        duration: reservation.duration || '60'
       });
       
       // Generate available times
@@ -1263,11 +1263,11 @@ const ProfilePage = () => {
                 </div>
               ) : (
                 <div className="reservations-list">
-                  <div className="reservation-list-header">
-                    <span className="reservation-id">Reservation ID</span>
+                  <div className="reservation-list-header">                    <span className="reservation-id">Reservation ID</span>
                     <span className="reservation-date">Date</span>
                     <span className="reservation-time">Time</span>
                     <span className="reservation-table">Table</span>
+                    <span className="reservation-duration">Duration</span>
                     <span className="reservation-status">Status</span>
                     <span className="reservation-actions">Actions</span>
                   </div>
@@ -1277,10 +1277,10 @@ const ProfilePage = () => {
                     const status = reservation.status || 'Pending';
                     return (
                       <div key={reservation.reserve_id} className="reservation-item">
-                        <div className="reservation-id">#{reservation.reserve_id}</div>
-                        <div className="reservation-date">{formatDate(reservation.date_time)}</div>
+                        <div className="reservation-id">#{reservation.reserve_id}</div>                        <div className="reservation-date">{formatDate(reservation.date_time)}</div>
                         <div className="reservation-time">{formatTime(reservation.date_time)}</div>
                         <div className="reservation-guests">Table {reservation.table_no}</div>
+                        <div className="reservation-duration">{reservation.duration || 60} min</div>
                         <div className={`reservation-status status-${status.toLowerCase()}`}>
                           {status}
                         </div>
@@ -1413,23 +1413,41 @@ const ProfilePage = () => {
                       </select>
                     </div>
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="table_no">Table</label>
-                    <select
-                      id="table_no"
-                      name="table_no"
-                      value={editedReservationData.table_no}
-                      onChange={handleReservationFormChange}
-                      required
-                    >
-                      <option value="">Select a table</option>
-                      {availableTables.map((table) => (
-                        <option key={table.table_no} value={table.table_no}>
-                          Table {table.table_no} - {table.capacity} {table.capacity === 1 ? 'person' : 'people'} 
-                          {table.location ? ` (${table.location})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="table_no">Table</label>
+                      <select
+                        id="table_no"
+                        name="table_no"
+                        value={editedReservationData.table_no}
+                        onChange={handleReservationFormChange}
+                        required
+                      >
+                        <option value="">Select a table</option>
+                        {availableTables.map((table) => (
+                          <option key={table.table_no} value={table.table_no}>
+                            Table {table.table_no} - {table.capacity} {table.capacity === 1 ? 'person' : 'people'} 
+                            {table.location ? ` (${table.location})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="duration">Duration (minutes)</label>
+                      <select
+                        id="duration"
+                        name="duration"
+                        value={editedReservationData.duration || '60'}
+                        onChange={handleReservationFormChange}
+                        required
+                      >
+                        <option value="60">1 hour</option>
+                        <option value="90">1.5 hours</option>
+                        <option value="120">2 hours</option>
+                        <option value="150">2.5 hours</option>
+                        <option value="180">3 hours</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label htmlFor="special_requests">Special Requests (Optional)</label>

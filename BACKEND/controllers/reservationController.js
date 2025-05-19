@@ -251,9 +251,8 @@ exports.getReservationById = (req, res) => {
 /**
  * Create a new reservation
  */
-exports.createReservation = async (req, res) => {
-  try {
-    const { user_id, table_no, special_requests, date_time } = req.body;
+exports.createReservation = async (req, res) => {  try {
+    const { user_id, table_no, special_requests, date_time, duration } = req.body;
     
     // Basic validation
     if (!table_no || !date_time) {
@@ -333,14 +332,14 @@ exports.createReservation = async (req, res) => {
         error_code: 'TABLE_ALREADY_RESERVED'
       });
     }
-    
-    // Create the reservation
+      // Create the reservation
     const newReservation = {
       user_id: user_id || null, // Allow anonymous reservations
       table_no,
       special_requests: special_requests || null,
       date_time: reservationDateTime,
-      status: 'Pending' // Set status as Pending by default
+      status: 'Pending', // Set status as Pending by default
+      duration: duration || 60 // Use provided duration or default to 60 minutes
     };
     
     db.query('INSERT INTO reservations SET ?', newReservation, (err, result) => {
@@ -376,7 +375,7 @@ exports.createReservation = async (req, res) => {
 exports.updateReservation = async (req, res) => {
   try {
     const reserveId = req.params.id;
-    const { table_no, special_requests, date_time } = req.body;
+    const { table_no, special_requests, date_time, duration } = req.body;
     
     // Fetch the current reservation
     const currentReservation = await new Promise((resolve, reject) => {
@@ -444,12 +443,12 @@ exports.updateReservation = async (req, res) => {
         });
       }
     }
-    
-    // Update the reservation
+      // Update the reservation
     const updatedReservation = {
       table_no: tableNumber,
       special_requests: special_requests !== undefined ? special_requests : currentReservation.special_requests,
-      date_time: reservationDateTime
+      date_time: reservationDateTime,
+      duration: duration !== undefined ? duration : currentReservation.duration
     };
     
     db.query('UPDATE reservations SET ? WHERE reserve_id = ?', [updatedReservation, reserveId], (err, result) => {

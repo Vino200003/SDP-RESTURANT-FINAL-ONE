@@ -15,8 +15,12 @@ import {
 } from '../services/reservationService';
 import { serverStatus } from '../utils/mockData';
 import '../styles/ReservationManagement.css';
+import useAuthToken from '../hooks/useAuthToken';
 
 function ReservationManagement() {
+  // Initialize the authentication token for API calls
+  useAuthToken();
+  
   // State for reservations
   const [reservations, setReservations] = useState([]);
   const [filteredReservations, setFilteredReservations] = useState([]);
@@ -429,8 +433,7 @@ function ReservationManagement() {
     useEffect(() => {
       setCurrentStatus(getReservationStatus(reservation));
     }, [reservation]);
-    
-    return (
+      return (
       <tr key={reservation.reserve_id || reservation.reservation_id}>
         <td>{reservation.reserve_id || reservation.reservation_id}</td>
         <td>
@@ -441,6 +444,7 @@ function ReservationManagement() {
         </td>
         <td>Table {reservation.table_no}</td>
         <td>{formatDate(reservation.date_time)}</td>
+        <td>{reservation.duration || 60} min</td>
         <td>{reservation.guests || reservation.capacity || 'N/A'}</td>
         <td>
           <span className={`status-badge ${getStatusClass(currentStatus)}`}>
@@ -856,8 +860,7 @@ function ReservationManagement() {
         </div>
         {isLoading ? (
           <div className="loading">Loading reservations...</div>
-        ) : (
-          <div className="reservations-table-container">
+        ) : (          <div className="reservations-table-container">
             <table className="reservations-table">
               <thead>
                 <tr>
@@ -865,6 +868,7 @@ function ReservationManagement() {
                   <th>Customer</th>
                   <th>Table</th>
                   <th>Date & Time</th>
+                  <th>Duration</th>
                   <th>Guests</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -925,9 +929,9 @@ function ReservationManagement() {
               <div className="reservation-details-content">
                 <div className="reservation-info-section">
                   <div className="reservation-info-group">
-                    <h3>Reservation Information</h3>
-                    <p><strong>Status:</strong> {selectedReservation.status || 'Confirmed'}</p>
+                    <h3>Reservation Information</h3>                    <p><strong>Status:</strong> {selectedReservation.status || 'Confirmed'}</p>
                     <p><strong>Date & Time:</strong> {formatDate(selectedReservation.date_time)}</p>
+                    <p><strong>Duration:</strong> {selectedReservation.duration || 60} minutes</p>
                     <p><strong>Table Number:</strong> {selectedReservation.table_no}</p>
                     <p><strong>Guests:</strong> {selectedReservation.guests || selectedReservation.capacity || 'N/A'}</p>
                     <p><strong>Created:</strong> {formatDate(selectedReservation.created_at)}</p>

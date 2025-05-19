@@ -3,14 +3,14 @@ import Footer from '../components/Footer';
 import { getAllTables, getAvailableTables, createReservation } from '../utils/api';
 import '../styles/ReservationPage.css';
 
-const ReservationPage = () => {
-  // Form state - remove contact information fields
+const ReservationPage = () => {  // Form state - remove contact information fields
   const [formData, setFormData] = useState({
     date: '',
     time: '',
     table: '',
     occasion: '',
-    specialRequests: ''
+    specialRequests: '',
+    duration: '60' // Default duration of 60 minutes
   });
 
   // States for form handling
@@ -274,14 +274,14 @@ const ReservationPage = () => {
       
       // Get user ID if logged in
       const userId = userData?.id || null;
-      
-      const reservationData = {
+        const reservationData = {
         user_id: userId,
         table_no: parseInt(formData.table, 10),
         date_time: reservationDate.toISOString(),
         special_requests: formData.occasion 
           ? `Occasion: ${formData.occasion}. ${formData.specialRequests || ''}`
-          : formData.specialRequests || ''
+          : formData.specialRequests || '',
+        duration: parseInt(formData.duration, 10) || 60
       };
       
       // Call API to create reservation
@@ -289,14 +289,14 @@ const ReservationPage = () => {
       
       // Reservation successful
       setSubmitSuccess(true);
-      
-      // Reset form
+        // Reset form
       setFormData({
         date: '',
         time: '',
         table: '',
         occasion: '',
-        specialRequests: ''
+        specialRequests: '',
+        duration: '60'
       });
       
       // Scroll to top to show success message
@@ -480,6 +480,21 @@ const ReservationPage = () => {
                         </div>
                       </div>
                     )}
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="duration">Duration (minutes)</label>
+                    <select
+                      id="duration"
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleChange}
+                    >
+                      <option value="60">1 hour</option>
+                      <option value="90">1.5 hours</option>
+                      <option value="120">2 hours</option>
+                      <option value="150">2.5 hours</option>
+                      <option value="180">3 hours</option>
+                    </select>
                   </div>
                   <div className="form-group">
                     <label htmlFor="occasion">Special Occasion (Optional)</label>
