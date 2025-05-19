@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Dashboard from './pages/Dashboard';
 import MenuManagement from './pages/MenuManagement';
 import OrdersManagement from './pages/OrdersManagement';
@@ -9,7 +10,7 @@ import StaffManagement from './pages/StaffManagement';
 import DeliveryManagement from './pages/DeliveryManagement';
 import AdminSettings from './pages/AdminSettings'; 
 import Reports from './pages/Reports';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import StaffAttendanceManagement from './pages/StaffAttendanceManagement';
 import "./App.css";
 
 // Add the ProtectedRoute component definition
@@ -65,6 +66,11 @@ function App() {
           <Route path="/staff" element={
             <ProtectedRoute>
               <StaffManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/staff-attendance" element={
+            <ProtectedRoute>
+              <StaffAttendanceManagement />
             </ProtectedRoute>
           } />
           <Route path="/delivery" element={

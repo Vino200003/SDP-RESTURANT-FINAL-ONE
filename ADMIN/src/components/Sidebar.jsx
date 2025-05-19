@@ -54,7 +54,7 @@ function Sidebar() {
     },
     {
       name: 'Staff Attendance',
-      path: '/attendance',
+      path: '/staff-attendance',
       icon: '⏱️'
     },
     {
