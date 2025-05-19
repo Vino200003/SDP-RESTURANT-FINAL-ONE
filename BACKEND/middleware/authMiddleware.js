@@ -4,7 +4,9 @@ require('dotenv').config();
 
 exports.protect = (req, res, next) => {
   // Get token from header
-  const token = req.header('x-auth-token');
+  const token = req.header('x-auth-token') || 
+                (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
+                 ? req.headers.authorization.split(' ')[1] : null);
 
   // Check if no token
   if (!token) {
@@ -24,13 +26,12 @@ exports.protect = (req, res, next) => {
 
       if (results.length === 0) {
         return res.status(401).json({ message: 'User not found' });
-      }
-
-      // Add user to request object
+      }      // Add user to request object
       req.user = {
-        id: decoded.id,
+        id: decoded.id || decoded.user_id, // Support both id and user_id in token
         email: decoded.email
       };
+      console.log('User set in request:', req.user);
       next();
     });
   } catch (err) {

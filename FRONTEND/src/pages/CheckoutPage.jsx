@@ -46,26 +46,49 @@ const CheckoutPage = () => {
   // State for available tables
   const [availableTables, setAvailableTables] = useState([]);
   const [isLoadingTables, setIsLoadingTables] = useState(false);
-
   // Fetch user profile, cart, and delivery zones
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       
-      // Fetch cart data
-      const storedCart = JSON.parse(localStorage.getItem('cart')) || [];
-      
-      // If cart is empty, redirect back to cart page
-      if (storedCart.length === 0) {
-        if (window.navigateTo) {
-          window.navigateTo('/cart');
+      // Try to fetch cart items from database first if user is authenticated
+      const token = localStorage.getItem('token');
+      let cartItems = [];
+
+      try {
+        if (token) {
+          // Try to load from API first
+          try {
+            const { getCartItems } = await import('../utils/cartApi');
+            cartItems = await getCartItems();
+            console.log("Cart items loaded from API:", cartItems);
+          } catch (apiError) {
+            console.error('Error loading cart from API:', apiError);
+            // Fallback to localStorage
+            cartItems = JSON.parse(localStorage.getItem('cart')) || [];
+          }
         } else {
-          window.location.href = '/cart';
+          // Not authenticated, use localStorage
+          cartItems = JSON.parse(localStorage.getItem('cart')) || [];
         }
-        return;
+        
+        // If cart is empty, redirect back to cart page
+        if (cartItems.length === 0) {
+          if (window.navigateTo) {
+            window.navigateTo('/cart');
+          } else {
+            window.location.href = '/cart';
+          }
+          return;
+        }
+        
+        setCart(cartItems);
+      } catch (error) {
+        console.error('Error loading cart:', error);
+        // Fallback to localStorage
+        cartItems = JSON.parse(localStorage.getItem('cart')) || [];
+        setCart(cartItems);
       }
-      
-      setCart(storedCart);
       
       // Get delivery method from localStorage (set on the cart page)
       const storedDeliveryMethod = localStorage.getItem('deliveryMethod');
@@ -75,12 +98,14 @@ const CheckoutPage = () => {
       
       // Fetch delivery zones
       try {
+        console.log('Fetching delivery zones...');
         const zones = await getDeliveryZones();
+        console.log('Received delivery zones:', zones);
         setDeliveryZones(zones);
-        
-        // Get selected zone from localStorage (set on the cart page)
+            // Get selected zone from localStorage (set on the cart page)
         const storedZoneId = localStorage.getItem('selectedZoneId');
         if (storedZoneId) {
+          console.log('Found stored zone ID:', storedZoneId);
           // Update form data with the selected zone
           setFormData(prevData => ({
             ...prevData,
@@ -88,8 +113,13 @@ const CheckoutPage = () => {
           }));
           
           // Find the selected zone object
-          const selectedZone = zones.find(zone => zone.zone_id === parseInt(storedZoneId));
+          const selectedZone = zones.find(zone => 
+            (zone.id && zone.id === parseInt(storedZoneId)) || 
+            (zone.zone_id && zone.zone_id === parseInt(storedZoneId))
+          );
+          
           if (selectedZone) {
+            console.log('Found matching zone:', selectedZone);
             setSelectedZone(selectedZone);
             
             // Update delivery fee based on the selected zone
@@ -97,18 +127,33 @@ const CheckoutPage = () => {
               setDeliveryFee(parseFloat(selectedZone.delivery_fee));
             }
           }
-        }
-      } catch (error) {
+        }      } catch (error) {
         console.error('Error fetching delivery zones:', error);
+        
         // Fallback to hardcoded values if API fails
-        setDeliveryZones([
+        const fallbackZones = [
           { zone_id: 1, gs_division: 'Vavuniya South', delivery_fee: 5.00, estimated_delivery_time_min: 30 },
           { zone_id: 2, gs_division: 'Vavuniya North', delivery_fee: 6.50, estimated_delivery_time_min: 40 },
           { zone_id: 3, gs_division: 'Vavuniya', delivery_fee: 4.50, estimated_delivery_time_min: 25 },
           { zone_id: 4, gs_division: 'Vengalacheddikulam', delivery_fee: 8.00, estimated_delivery_time_min: 50 },
           { zone_id: 5, gs_division: 'Nedunkeni', delivery_fee: 7.50, estimated_delivery_time_min: 45 },
           { zone_id: 6, gs_division: 'Cheddikulam', delivery_fee: 7.00, estimated_delivery_time_min: 45 }
-        ]);
+        ];
+        
+        console.log('Using fallback delivery zones:', fallbackZones);
+        setDeliveryZones(fallbackZones);
+        
+        // If we have a stored zone ID, find it in our fallback data
+        const storedZoneId = localStorage.getItem('selectedZoneId');
+        if (storedZoneId) {
+          const fallbackSelectedZone = fallbackZones.find(zone => zone.zone_id === parseInt(storedZoneId));
+          if (fallbackSelectedZone) {
+            setSelectedZone(fallbackSelectedZone);
+            if (deliveryMethod === 'delivery') {
+              setDeliveryFee(parseFloat(fallbackSelectedZone.delivery_fee));
+            }
+          }
+        }
       }
       
       // Try to fetch user profile data
@@ -231,21 +276,31 @@ const CheckoutPage = () => {
       setIsLoadingTables(false);
     }
   };
-
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    // Special handling for zoneId
+      // Special handling for zoneId
     if (name === 'zoneId') {
-      const selectedZone = deliveryZones.find(zone => zone.zone_id === parseInt(value));
+      console.log('Zone ID changed to:', value);
+      
+      const selectedZone = deliveryZones.find(zone => 
+        (zone.id && zone.id === parseInt(value)) || 
+        (zone.zone_id && zone.zone_id === parseInt(value))
+      );
+      
       if (selectedZone) {
+        console.log('Selected zone found:', selectedZone);
         setSelectedZone(selectedZone);
         
         // Update delivery fee based on the selected zone
         if (deliveryMethod === 'delivery') {
           // Use the delivery fee from the selected zone
-          setDeliveryFee(parseFloat(selectedZone.delivery_fee));
+          const newDeliveryFee = parseFloat(selectedZone.delivery_fee);
+          console.log('Setting new delivery fee:', newDeliveryFee);
+          setDeliveryFee(newDeliveryFee);
+          
+          // Store selected zone ID in localStorage for persistence
+          localStorage.setItem('selectedZoneId', value);
           
           // Add highlight effect to the delivery fee
           if (deliveryFeeRef.current) {
@@ -257,6 +312,11 @@ const CheckoutPage = () => {
             }, 1000);
           }
         }
+      } else if (value === '') {
+        // Reset selected zone and delivery fee if nothing is selected
+        setSelectedZone(null);
+        setDeliveryFee(50.00); // Default delivery fee
+        localStorage.removeItem('selectedZoneId');
       }
     }
     
@@ -572,14 +632,24 @@ const CheckoutPage = () => {
           throw new Error(`Failed to place order: ${response.status} ${response.statusText}`);
         }
       }
-      
-      const data = await response.json();
+        const data = await response.json();
       console.log('Order placed successfully:', data);
       
       // Order successful
       setOrderSuccess(true);
       
-      // Clear cart
+      // Clear cart from database if user is authenticated
+      if (token) {
+        try {
+          const { clearCart } = await import('../utils/cartApi');
+          await clearCart();
+        } catch (clearCartError) {
+          console.error('Error clearing cart from database:', clearCartError);
+          // If clearing from database fails, still clear localStorage
+        }
+      }
+      
+      // Clear cart from localStorage
       localStorage.setItem('cart', JSON.stringify([]));
       
       // Dispatch event so navbar can update cart count
@@ -756,8 +826,7 @@ const CheckoutPage = () => {
                       </>
                     )}
                     
-                    {/* Updated GS Division dropdown to use data from API */}
-                    <div className="form-group gs-division-container">
+                    {/* Updated GS Division dropdown to use data from API */}                    <div className="form-group gs-division-container">
                       <label htmlFor="zoneId">Delivery Zone <span className="required">*</span></label>
                       <select
                         id="zoneId"
@@ -767,18 +836,20 @@ const CheckoutPage = () => {
                         className={formErrors.zoneId ? 'error' : ''}
                       >
                         <option value="">Select Delivery Zone</option>
-                        {deliveryZones.map(zone => (
-                          <option key={zone.zone_id} value={zone.zone_id}>
-                            {zone.gs_division}
-                          </option>
-                        ))}
+                        {deliveryZones && deliveryZones.length > 0 ? (
+                          deliveryZones.map(zone => (
+                            <option key={zone.id || zone.zone_id} value={zone.id || zone.zone_id}>
+                              {zone.name || zone.gs_division}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>Loading zones...</option>
+                        )}
                       </select>
                       {formErrors.zoneId && <span className="error-text">{formErrors.zoneId}</span>}
                       {selectedZone && (
                         <p className="pickup-time-note">
-                          Estimated delivery time: {selectedZone.estimated_delivery_time_min} minutes
-                          <br />
-                          Delivery Fee: LKR {parseFloat(selectedZone.delivery_fee).toFixed(2)}
+                          Estimated delivery time: {selectedZone.estimated_time || selectedZone.estimated_delivery_time_min} minutes
                         </p>
                       )}
                     </div>

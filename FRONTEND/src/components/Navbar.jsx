@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { logoutUser } from '../utils/api';
+import { getCartItems } from '../utils/cartApi';
 import logo from '../assets/logo.png'; // Import the logo from assets folder
 import '../styles/Navbar.css';
 
@@ -10,10 +11,69 @@ const Navbar = () => {
   const [activePage, setActivePage] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
-
   // Add state for cart items count - initialized to 0
   const [cartItemsCount, setCartItemsCount] = useState(0);
+  // Add loading state to prevent multiple parallel requests
+  const [isLoadingCart, setIsLoadingCart] = useState(false);
+  
+  // Function to get cart items from the database for authenticated users
+  // or from localStorage for unauthenticated users
+  const fetchCartCount = useCallback(async () => {
+    if (isLoadingCart) return; // Prevent multiple parallel requests
+    setIsLoadingCart(true);
+    console.log('Fetching cart count...');
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        // User is authenticated, get cart from database
+        console.log('User is authenticated, fetching cart from database...');
+        const cartData = await getCartItems();
+        const count = cartData.reduce((total, item) => total + item.quantity, 0);
+        console.log('Retrieved cart from database:', cartData, 'Total count:', count);
+        setCartItemsCount(count);
+      } else {
+        // User is not authenticated, get cart from localStorage
+        console.log('User is not authenticated, fetching cart from localStorage...');
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const count = cart.reduce((total, item) => total + item.quantity, 0);
+        console.log('Retrieved cart from localStorage:', cart, 'Total count:', count);
+        setCartItemsCount(count);
+      }
+    } catch (error) {
+      console.error('Error fetching cart count:', error);
+      // Fallback to localStorage on error
+      const cart = JSON.parse(localStorage.getItem('cart')) || [];
+      const count = cart.reduce((total, item) => total + item.quantity, 0);
+      setCartItemsCount(count);
+    } finally {
+      setIsLoadingCart(false);
+    }
+  }, []);  // No dependencies needed as this function doesn't rely on any changing props/state
 
+  // Event handler for cart updates
+  const handleCartUpdated = useCallback(() => {
+    console.log('Cart updated event received in Navbar');
+    fetchCartCount();
+  }, [fetchCartCount]);
+  
+  // Event handler for authentication changes
+  const handleAuthChange = useCallback(() => {
+    console.log('Auth change event received in Navbar');
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    const wasLoggedIn = isLoggedIn;
+    const nowLoggedIn = !!token && !!user;
+    
+    setIsLoggedIn(nowLoggedIn);
+    setUserData(user);
+    
+    // If login status changed, update cart count from appropriate source
+    if (wasLoggedIn !== nowLoggedIn) {
+      console.log('Login status changed, refreshing cart count');
+      fetchCartCount();
+    }
+  }, [fetchCartCount, isLoggedIn]);
   // Handle scroll event to change navbar appearance
   useEffect(() => {
     const handleScroll = () => {
@@ -39,38 +99,20 @@ const Navbar = () => {
       setUserData(user);
     }
     
-    // Function to get cart items from localStorage or context/state management
-    const getCartItemsCount = () => {
-      // For localStorage example:
-      const cart = JSON.parse(localStorage.getItem('cart')) || [];
-      return cart.reduce((total, item) => total + item.quantity, 0);
-    };
+    // Fetch initial cart count
+    fetchCartCount();
     
-    // Set initial cart count from localStorage or keep default 0
-    setCartItemsCount(getCartItemsCount());
-    
-    // Optional: Setup event listener for cart updates
-    window.addEventListener('cartUpdated', () => {
-      setCartItemsCount(getCartItemsCount());
-    });
-    
-    // Setup event listener for auth status changes
-    window.addEventListener('authChange', () => {
-      const token = localStorage.getItem('token');
-      const user = JSON.parse(localStorage.getItem('user'));
-      setIsLoggedIn(!!token && !!user);
-      setUserData(user);
-    });
+    // Add event listeners
+    window.addEventListener('cartUpdated', handleCartUpdated);
+    window.addEventListener('authChange', handleAuthChange);
     
     // Clean up event listeners
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('cartUpdated', () => {
-        setCartItemsCount(getCartItemsCount());
-      });
-      window.removeEventListener('authChange', () => {});
+      window.removeEventListener('cartUpdated', handleCartUpdated);
+      window.removeEventListener('authChange', handleAuthChange);
     };
-  }, []);
+  }, [fetchCartCount, handleCartUpdated, handleAuthChange]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);

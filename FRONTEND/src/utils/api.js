@@ -752,8 +752,9 @@ export const cancelOrder = async (orderId) => {
  */
 export const getDeliveryZones = async () => {
   try {
+    console.log('Fetching delivery zones from API...');
     // First try to fetch from API
-    const response = await fetch('http://localhost:5000/api/delivery-zones', {
+    const response = await fetch('http://localhost:5000/api/delivery-zones/public', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -765,7 +766,16 @@ export const getDeliveryZones = async () => {
       throw new Error(errorData.message || 'Failed to fetch delivery zones');
     }
     
-    return await response.json();
+    const data = await response.json();
+    console.log('Successfully fetched delivery zones:', data);
+    
+    // Normalize the data to ensure it has the properties we expect
+    return data.map(zone => ({
+      ...zone,
+      zone_id: zone.id || zone.zone_id,
+      gs_division: zone.name || zone.gs_division,
+      estimated_delivery_time_min: zone.estimated_time || zone.estimated_delivery_time_min
+    }));
   } catch (error) {
     console.error('Error fetching delivery zones:', error);
     

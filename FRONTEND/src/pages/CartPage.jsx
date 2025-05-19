@@ -1,24 +1,62 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import '../styles/CartPage.css';
 import Footer from '../components/Footer';
+import { getCartItems, updateCartItem, removeFromCart, clearCart } from '../utils/cartApi';
+import { useNavigate } from 'react-router-dom'; // Import for navigation
+
+// If you have an AuthContext, import it
+// import { AuthContext } from '../context/AuthContext';
 
 const CartPage = () => {
   const [cart, setCart] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  const navigate = useNavigate();
+  
+  // If you have AuthContext, you can use it to check login status
+  // const { isAuthenticated, user } = useContext(AuthContext);
 
-  // Load cart from localStorage on component mount
+  // Load cart from database on component mount
   useEffect(() => {
-    setIsLoading(true);
-    try {
-      // Load cart
-      const cartItems = JSON.parse(localStorage.getItem('cart')) || [];
-      setCart(cartItems);
-    } catch (error) {
-      console.error('Error loading cart:', error);
-      setCart([]);
-    }
-    setIsLoading(false);
+    const loadCart = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Check if user is authenticated (example - modify as needed)
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.log('User not authenticated, using localStorage cart');
+          // Fallback to localStorage if user is not authenticated
+          const localCartItems = JSON.parse(localStorage.getItem('cart')) || [];
+          setCart(localCartItems);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Fetch cart from database if authenticated
+        const cartItems = await getCartItems();
+        setCart(cartItems);
+      } catch (error) {
+        console.error('Error loading cart:', error);
+        setError('Failed to load your cart. Please try again.');
+        
+        // Fallback to localStorage on error
+        try {
+          const localCartItems = JSON.parse(localStorage.getItem('cart')) || [];
+          setCart(localCartItems);
+        } catch (localStorageError) {
+          console.error('Error loading cart from localStorage:', localStorageError);
+          setCart([]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCart();
   }, []);
 
   // Calculate subtotal whenever cart items change
@@ -32,7 +70,6 @@ const CartPage = () => {
   const formatPrice = (price) => {
     return parseFloat(price).toFixed(2);
   };
-
   // Proceed to checkout
   const proceedToCheckout = () => {
     if (cart.length === 0) {
@@ -41,47 +78,104 @@ const CartPage = () => {
     }
     
     // Navigate to checkout page
-    if (window.navigateTo) {
-      window.navigateTo('/checkout');
-    } else {
-      window.location.href = '/checkout';
-    }
+    navigate('/checkout');
   };
-  
-  // Handle quantity change
-  const handleQuantityChange = (index, change) => {
-    const updatedCart = [...cart];
-    const newQuantity = updatedCart[index].quantity + change;
+    // Handle quantity change
+  const handleQuantityChange = async (index, change) => {
+    const item = cart[index];
+    const newQuantity = item.quantity + change;
     
-    if (newQuantity <= 0) {
-      // Remove item if quantity becomes zero or negative
-      updatedCart.splice(index, 1);
+    // Check if authenticated
+    const token = localStorage.getItem('token');
+    const isAuthenticated = !!token;
+    
+    if (isAuthenticated && item.cart_item_id) {
+      try {
+        // If quantity is 0 or less, remove item
+        if (newQuantity <= 0) {
+          await removeFromCart(item.cart_item_id);
+          const updatedCart = cart.filter((_, i) => i !== index);
+          setCart(updatedCart);
+        } else {
+          // Update quantity in database
+          await updateCartItem(item.cart_item_id, newQuantity);
+          const updatedCart = [...cart];
+          updatedCart[index] = { ...updatedCart[index], quantity: newQuantity };
+          setCart(updatedCart);
+        }
+      } catch (error) {
+        console.error('Error updating cart item:', error);
+        alert('Failed to update cart item. Please try again.');
+      }
     } else {
-      updatedCart[index].quantity = newQuantity;
+      // Fallback to localStorage for unauthenticated users
+      const updatedCart = [...cart];
+      
+      if (newQuantity <= 0) {
+        // Remove item if quantity becomes zero or negative
+        updatedCart.splice(index, 1);
+      } else {
+        updatedCart[index].quantity = newQuantity;
+      }
+      
+      setCart(updatedCart);
+      localStorage.setItem('cart', JSON.stringify(updatedCart));
     }
-    
-    setCart(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
     
     // Dispatch cart updated event for navbar counter
     window.dispatchEvent(new Event('cartUpdated'));
   };
 
   // Handle removal of item
-  const handleRemoveItem = (index) => {
-    const updatedCart = [...cart];
-    updatedCart.splice(index, 1);
-    setCart(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
+  const handleRemoveItem = async (index) => {
+    const item = cart[index];
+    
+    // Check if authenticated
+    const token = localStorage.getItem('token');
+    const isAuthenticated = !!token;
+    
+    if (isAuthenticated && item.cart_item_id) {
+      try {
+        // Remove item from database
+        await removeFromCart(item.cart_item_id);
+        const updatedCart = cart.filter((_, i) => i !== index);
+        setCart(updatedCart);
+      } catch (error) {
+        console.error('Error removing cart item:', error);
+        alert('Failed to remove cart item. Please try again.');
+      }
+    } else {
+      // Fallback to localStorage for unauthenticated users
+      const updatedCart = [...cart];
+      updatedCart.splice(index, 1);
+      setCart(updatedCart);
+      localStorage.setItem('cart', JSON.stringify(updatedCart));
+    }
     
     // Dispatch cart updated event for navbar counter
     window.dispatchEvent(new Event('cartUpdated'));
   };
 
   // Clear entire cart
-  const handleClearCart = () => {
-    setCart([]);
-    localStorage.setItem('cart', JSON.stringify([]));
+  const handleClearCart = async () => {
+    // Check if authenticated
+    const token = localStorage.getItem('token');
+    const isAuthenticated = !!token;
+    
+    if (isAuthenticated) {
+      try {
+        // Clear cart in database
+        await clearCart();
+        setCart([]);
+      } catch (error) {
+        console.error('Error clearing cart:', error);
+        alert('Failed to clear cart. Please try again.');
+      }
+    } else {
+      // Fallback to localStorage for unauthenticated users
+      setCart([]);
+      localStorage.setItem('cart', JSON.stringify([]));
+    }
     
     // Dispatch cart updated event for navbar counter
     window.dispatchEvent(new Event('cartUpdated'));
@@ -89,13 +183,8 @@ const CartPage = () => {
 
   // Continue shopping
   const handleContinueShopping = () => {
-    if (window.navigateTo) {
-      window.navigateTo('/menu');
-    } else {
-      window.location.href = '/menu';
-    }
+    navigate('/menu');
   };
-
   if (isLoading) {
     return (
       <div className="cart-page">
@@ -110,6 +199,34 @@ const CartPage = () => {
           <div className="loading-container">
             <div className="loading-spinner"></div>
             <p>Loading your cart...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="cart-page">
+        <div className="cart-header">
+          <div className="cart-overlay"></div>
+          <div className="cart-content">
+            <h2>Your Cart</h2>
+            <p>Review your items before checkout</p>
+          </div>
+        </div>
+        <div className="cart-container">
+          <div className="error-container">
+            <i className="fas fa-exclamation-circle"></i>
+            <h3>Error Loading Cart</h3>
+            <p>{error}</p>
+            <button 
+              className="continue-shopping-btn"
+              onClick={handleContinueShopping}
+            >
+              <i className="fas fa-utensils"></i> Browse Menu
+            </button>
           </div>
         </div>
         <Footer />
@@ -159,9 +276,8 @@ const CartPage = () => {
         <div className="cart-content-wrapper">
           <div className="cart-items-container">
             <h3>Cart Items ({cart.length})</h3>
-            
-            {cart.map((item, index) => (
-              <div key={index} className="cart-item">
+              {cart.map((item, index) => (
+              <div key={item.cart_item_id || index} className="cart-item">
                 <div className="cart-item-image">
                   <img src={item.image_url || 'https://via.placeholder.com/100x100'} alt={item.name} />
                 </div>

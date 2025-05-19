@@ -17,6 +17,7 @@ const deliveryRoutes = require('./routes/deliveryRoutes'); // Import delivery ro
 const adminSettingsRoutes = require('./routes/adminSettings'); // Import admin settings routes
 const deliveryZoneRoutes = require('./routes/deliveryZoneRoutes'); // Import delivery zone routes
 const miscRoutes = require('./routes/miscRoutes'); // Import miscellaneous routes
+const cartRoutes = require('./routes/cartRoutes'); // Import cart routes
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use('/api/staff', staffRoutes); // Register staff routes
 app.use('/api/delivery', deliveryRoutes); // Register delivery routes
 app.use('/api/admin/settings', adminSettingsRoutes); // Register admin settings routes
 app.use('/api/delivery-zones', deliveryZoneRoutes); // Register delivery zone routes
+app.use('/api/cart', cartRoutes); // Register cart routes
 app.use('/api', miscRoutes); // Register miscellaneous routes
 console.log('Miscellaneous routes initialized');
 

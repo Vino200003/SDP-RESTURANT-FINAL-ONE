@@ -81,11 +81,9 @@ exports.registerUser = async (req, res) => {
               });
             }
 
-            console.log('User registered successfully with ID:', result.insertId);
-
-            // Generate JWT token
+            console.log('User registered successfully with ID:', result.insertId);            // Generate JWT token
             const token = jwt.sign(
-              { id: result.insertId, email },
+              { id: result.insertId, user_id: result.insertId, email },
               process.env.JWT_SECRET,
               { expiresIn: '1h' }
             );
@@ -152,11 +150,9 @@ exports.loginUser = async (req, res) => {
         if (!isPasswordValid) {
           console.log('Invalid password for user:', email);
           return res.status(401).json({ message: 'Invalid credentials' });
-        }
-
-        // Generate JWT token
+        }        // Generate JWT token
         const token = jwt.sign(
-          { id: user.user_id, email: user.email },
+          { id: user.user_id, user_id: user.user_id, email: user.email },
           process.env.JWT_SECRET,
           { expiresIn: '24h' }
         );

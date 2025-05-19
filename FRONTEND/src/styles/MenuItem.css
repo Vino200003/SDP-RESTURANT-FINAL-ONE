@@ -99,6 +99,14 @@
   color: #d4af37;
 }
 
+.cart-control-container {
+  height: 40px; /* Fixed height for consistent UI */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* Align to the right side */
+  margin-left: auto; /* Push to the right */
+}
+
 .add-to-cart-btn {
   background-color: #d4af37;
   color: white;
@@ -112,6 +120,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  animation: fadeIn 0.3s ease;
+  min-width: 120px; /* Ensure consistent width with quantity controls */
+  justify-content: center;
 }
 
 .add-to-cart-btn:hover {
@@ -145,39 +156,64 @@
 .menu-quantity-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background-color:rgb(161, 154, 154);
-  border-radius: 6px;
-  padding: 4px;
-  border: 1px solid #eee;
+  justify-content: center;
+  gap: 15px;
+  transition: all 0.3s ease;
+  min-width: 120px; /* Match width with add-to-cart button */
 }
 
 .menu-quantity-btn {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: none;
+  border: 1px solid #e6e6e6;
   background-color: #fff;
-  color: #333;
+  color: #555;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.menu-quantity-btn i {
+  font-size: 0.8rem;
 }
 
 .menu-quantity-btn:hover {
-  background-color: #d4af37;
-  color: white;
+  border-color: #ccc;
+  background-color: #fafafa;
+}
+
+.menu-quantity-btn:active {
+  transform: scale(0.95);
+  background-color: #f5f5f5;
 }
 
 .menu-quantity {
-  font-weight: 600;
-  font-size: 0.95rem;
-  min-width: 20px;
+  font-weight: 500;
+  font-size: 1rem;
+  min-width: 10px;
   text-align: center;
+  color: #333;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-quantity-controls {
+  animation: fadeIn 0.3s ease;
 }
 
 /* Media queries */
