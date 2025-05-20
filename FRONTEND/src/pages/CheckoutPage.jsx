@@ -383,8 +383,7 @@ const CheckoutPage = () => {
   
   // Available time slots
   const timeSlots = generateTimeSlots();
-  
-  // Check if a time slot is available based on the selected date
+    // Check if a time slot is available based on the selected date
   const isTimeSlotAvailable = (timeSlot, selectedDate) => {
     // If not today, all slots are available
     if (!selectedDate || selectedDate !== new Date().toISOString().split('T')[0]) {
@@ -397,7 +396,7 @@ const CheckoutPage = () => {
     const currentMinute = now.getMinutes();
     
     // Parse the time slot
-    const isPM = timeSlot.includes('PM') && !timeSlot.includes('12:');
+    const isPM = timeSlot.includes('PM');
     const is12PM = timeSlot.includes('12:') && timeSlot.includes('PM');
     const is12AM = timeSlot.includes('12:') && timeSlot.includes('AM');
     
@@ -408,16 +407,29 @@ const CheckoutPage = () => {
     const minute = parseInt(timeMatch[2], 10);
     
     // Convert to 24-hour format
-    if (isPM) {
+    if (isPM && hour !== 12) {
       hour += 12;
-    } else if (is12PM) {
-      hour = 12;
     } else if (is12AM) {
       hour = 0;
     }
+    // 12:00 PM is already 12 in 24-hour format, so no adjustment needed for is12PM
     
-    // Compare with current time
-    if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
+    console.log(`Time slot: ${timeSlot}, 24hr format: ${hour}:${minute}, Current: ${currentHour}:${currentMinute}`);
+    
+    // Compare with current time - add a buffer of 30 minutes for order preparation
+    const bufferMinutes = 30;
+    let bufferHour = currentHour;
+    let bufferMinute = currentMinute + bufferMinutes;
+    
+    // Adjust if buffer minutes exceed 60
+    if (bufferMinute >= 60) {
+      bufferHour += 1;
+      bufferMinute -= 60;
+    }
+    
+    // Check if the time slot is in the past or too soon
+    if (hour < bufferHour || (hour === bufferHour && minute < bufferMinute)) {
+      console.log(`Time slot ${timeSlot} not available - too soon (with ${bufferMinutes} min buffer)`);
       return false;
     }
     
@@ -472,15 +484,11 @@ const CheckoutPage = () => {
       }
       
       // Always validate Zone ID for delivery regardless of editing status
-      if (!formData.zoneId) errors.zoneId = 'Delivery zone is required';    } else if (deliveryMethod === 'pickup') {
+      if (!formData.zoneId) errors.zoneId = 'Delivery zone is required';
+    } else if (deliveryMethod === 'pickup') {
       // Validate pickup date and time
       if (!formData.pickupDate) errors.pickupDate = 'Pickup date is required';
       if (!formData.pickupTime) errors.pickupTime = 'Pickup time is required';
-      
-      // Check if selected time is still valid
-      if (formData.pickupDate && formData.pickupTime && !isTimeSlotAvailable(formData.pickupTime, formData.pickupDate)) {
-        errors.pickupTime = 'This time is no longer available. Please select a future time.';
-      }
     } else if (deliveryMethod === 'dine-in') {
       // Validate table selection for dine-in
       if (!formData.tableNo) errors.tableNo = 'Please select a table';
