@@ -228,32 +228,68 @@
 /* Actions */
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  justify-content: center;
 }
 
 .edit-btn, .delete-btn {
+  padding: 8px 14px;
+  border-radius: 6px;
   border: none;
-  background: none;
-  font-size: 16px;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  padding: 5px;
-  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edit-btn:after {
+  content: " Edit";
+}
+
+.delete-btn:after {
+  content: " Delete";
 }
 
 .edit-btn {
-  color: #2196f3;
+  background-color: #4361ee;
+  color: white;
 }
 
 .edit-btn:hover {
-  background-color: rgba(33, 150, 243, 0.1);
+  background-color: #3a53cc;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .delete-btn {
-  color: #f44336;
+  background-color: #ff3f5b;
+  color: white;
 }
 
 .delete-btn:hover {
-  background-color: rgba(244, 67, 54, 0.1);
+  background-color: #e63550;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.action-buttons i {
+  margin-right: 6px;
+  font-size: 1rem;
+}
+
+/* Ensure table cells containing action buttons have appropriate width */
+.data-table td:last-child {
+  min-width: 160px;
+  padding: 12px 15px;
+}
+
+/* Active state for buttons */
+.edit-btn:active, .delete-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Modals */

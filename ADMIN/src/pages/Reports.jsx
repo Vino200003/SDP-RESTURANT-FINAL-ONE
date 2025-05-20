@@ -41,15 +41,11 @@ function Reports() {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Fetch data based on report type
+        // Fetch data based on report type
       let data;
       switch (reportType) {
         case 'sales':
           data = await reportService.getSalesReport(dateRange.startDate, dateRange.endDate, aggregation);
-          break;
-        case 'menu':
-          data = await reportService.getMenuItemsReport(dateRange.startDate, dateRange.endDate);
           break;
         case 'reservations':
           data = await reportService.getReservationsReport(dateRange.startDate, dateRange.endDate, aggregation);
@@ -178,12 +174,9 @@ function Reports() {
   const initCharts = () => {
     // Only initialize charts if we have data and DOM elements
     if (!reportData || !salesChartRef.current) return;
-    
-    // Initialize the appropriate chart based on report type
+      // Initialize the appropriate chart based on report type
     if (reportType === 'sales') {
       initSalesChart();
-    } else if (reportType === 'menu') {
-      // Handle menu report chart if needed
     } else if (reportType === 'reservations') {
       initReservationsChart();
     }
@@ -505,15 +498,13 @@ function Reports() {
           </div>
         )}
         
-        <div className="reports-controls">
-          <div className="report-type-selector">
+        <div className="reports-controls">          <div className="report-type-selector">
             <label>Report Type:</label>
             <select 
               value={reportType}
               onChange={(e) => setReportType(e.target.value)}
             >
               <option value="sales">Sales Report</option>
-              <option value="menu">Menu Items Report</option>
               <option value="reservations">Reservations Report</option>
             </select>
           </div>

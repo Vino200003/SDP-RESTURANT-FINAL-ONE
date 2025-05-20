@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import { 
@@ -18,8 +18,7 @@ function StaffManagement() {
   const [filteredStaff, setFilteredStaff] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isServerDown, setIsServerDown] = useState(false);
-  
-  // State for staff operations
+    // State for staff operations
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -29,6 +28,10 @@ function StaffManagement() {
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  
+  // Refs for form scrolling detection
+  const addFormRef = useRef(null);
+  const editFormRef = useRef(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchCategory, setSearchCategory] = useState('all');
   
@@ -60,11 +63,51 @@ function StaffManagement() {
     fetchStaff();
     checkServerConnection();
   }, []);
-  
-  // Update filtered staff when search or filter changes
+    // Update filtered staff when search or filter changes
   useEffect(() => {
     filterStaff();
   }, [searchTerm, roleFilter, statusFilter, staff, searchCategory]);
+    // Handle form scroll detection for improved UX
+  useEffect(() => {
+    const checkFormScroll = (formRef) => {
+      if (formRef && formRef.current) {
+        const { scrollHeight, clientHeight } = formRef.current;
+        // If content height is greater than visible height, add scrollable class
+        if (scrollHeight > clientHeight) {
+          formRef.current.classList.add('scrollable');
+        } else {
+          formRef.current.classList.remove('scrollable');
+        }
+      }
+    };
+    
+    const handleResize = () => {
+      if (isAddModalOpen) {
+        checkFormScroll(addFormRef);
+      }
+      if (isEditModalOpen) {
+        checkFormScroll(editFormRef);
+      }
+    };
+    
+    if (isAddModalOpen) {
+      // Allow time for the modal to render
+      setTimeout(() => checkFormScroll(addFormRef), 100);
+    }
+    
+    if (isEditModalOpen) {
+      // Allow time for the modal to render
+      setTimeout(() => checkFormScroll(editFormRef), 100);
+    }
+    
+    // Add resize listener to update scroll detection when window size changes
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isAddModalOpen, isEditModalOpen, selectedStaff]);
   
   // Check server status
   const checkServerConnection = async () => {
@@ -500,13 +543,13 @@ function StaffManagement() {
                             className="edit-btn"
                             onClick={() => openEditModal(member)}
                           >
-                            Edit
+                            
                           </button>
                           <button 
                             className="delete-btn"
                             onClick={() => openDeleteModal(member)}
                           >
-                            Delete
+                            
                           </button>
                         </div>
                       </td>
@@ -537,7 +580,7 @@ function StaffManagement() {
                   &times;
                 </button>
               </div>
-              <form className="staff-form" onSubmit={handleAddStaff}>
+              <form ref={addFormRef} className="staff-form" onSubmit={handleAddStaff}>
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="first_name">First Name</label>
@@ -701,7 +744,7 @@ function StaffManagement() {
                   &times;
                 </button>
               </div>
-              <form className="staff-form" onSubmit={handleEditStaff}>
+              <form ref={editFormRef} className="staff-form" onSubmit={handleEditStaff}>
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="edit_first_name">First Name</label>

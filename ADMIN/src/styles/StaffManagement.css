@@ -357,12 +357,45 @@ input:checked + .toggle-slider:before {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
+/* Add custom scrollbar styling for better visibility */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Staff form modal specific styles for scrolling */
+.staff-form-modal {
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* For smooth scrolling on iOS devices */
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
   border-bottom: 1px solid #eee;
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
 }
 
 .modal-header h2 {
@@ -387,6 +420,13 @@ input:checked + .toggle-slider:before {
 /* Form styles */
 .staff-form {
   padding: 24px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px); /* Account for the modal header */
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  /* Add a little spacing at the bottom for better visual appearance when scrolling */
+  padding-bottom: 30px;
 }
 
 .form-row {
@@ -433,6 +473,12 @@ input:checked + .toggle-slider:before {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 24px;
+  padding-top: 16px;
+  background-color: white;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  border-top: 1px solid #f5f5f5;
 }
 
 .cancel-btn,
@@ -600,6 +646,29 @@ input:checked + .toggle-slider:before {
     flex-direction: column;
     gap: 0;
   }
+  
+  /* Modal responsive styles for better scrolling */
+  .modal-content {
+    width: 95%;
+    max-height: 85vh;
+  }
+  
+  .staff-form-modal {
+    max-height: 85vh;
+  }
+  
+  .staff-form {
+    padding: 16px;
+    max-height: calc(85vh - 60px);
+  }
+  
+  .modal-header {
+    padding: 12px 16px;
+  }
+  
+  .form-actions {
+    padding: 12px 16px;
+  }
 }
 
 @media (max-width: 576px) {
@@ -613,6 +682,51 @@ input:checked + .toggle-slider:before {
   
   .staff-table {
     min-width: 650px;
+  }
+  
+  /* Modal scrolling improvements for small devices */
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 0;
+    margin: 0;
+  }
+  
+  .staff-form-modal {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .staff-form {
+    padding: 12px;
+    max-height: calc(100vh - 56px);
+  }
+  
+  .modal-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .form-group label {
+    font-size: 0.9rem;
+  }
+    /* Better scroll indicators */
+  .staff-form::after {
+    content: '';
+    position: absolute;
+    bottom: 60px; /* Leave space for the form actions */
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(to top, rgba(255,255,255,0.9), rgba(255,255,255,0));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 5;
+  }
+  
+  .staff-form.scrollable::after {
+    opacity: 1;
   }
 }
 

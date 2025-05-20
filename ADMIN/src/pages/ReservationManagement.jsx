@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import { 
@@ -11,7 +11,8 @@ import {
   updateTableStatus,
   setTableActiveStatus,
   createNewTable,
-  checkTablesAvailability  // Add this import
+  checkTablesAvailability,
+  autoCancelPendingReservations  // Import the new function
 } from '../services/reservationService';
 import { serverStatus } from '../utils/mockData';
 import '../styles/ReservationManagement.css';
@@ -100,6 +101,10 @@ function ReservationManagement() {
           const idB = b.reserve_id || b.reservation_id || 0;
           return idB - idA;
         });
+        
+        // Cache the fetched reservations for in-memory processing
+        localStorage.setItem('cachedReservations', JSON.stringify(sortedReservations));
+        
         setReservations(sortedReservations);
         setFilteredReservations(sortedReservations);
         if (data.pagination) {
@@ -114,6 +119,10 @@ function ReservationManagement() {
           const idB = b.reserve_id || b.reservation_id || 0;
           return idB - idA;
         });
+        
+        // Cache the fetched reservations for in-memory processing
+        localStorage.setItem('cachedReservations', JSON.stringify(sortedData));
+        
         setReservations(sortedData);
         setFilteredReservations(sortedData);
       }
@@ -747,6 +756,77 @@ function ReservationManagement() {
         </div>
       </div>
     );
+  };
+  
+  // Add a ref to track if the component is mounted
+  const isMountedRef = useRef(true);
+  
+  // Add state to track last auto-cancel check time
+  const [lastAutoCheckTime, setLastAutoCheckTime] = useState(Date.now());
+  
+  // Set up the auto-cancellation timer when component mounts
+  useEffect(() => {
+    // Check for auto-cancellations immediately on mount
+    runAutoCancellation();
+    
+    // Set up interval to check every minute (60000 ms)
+    const intervalId = setInterval(() => {
+      if (isMountedRef.current) {
+        runAutoCancellation();
+      }
+    }, 60000);
+    
+    // Set up event listener for reservation changes
+    const handleReservationsChanged = () => {
+      if (isMountedRef.current) {
+        // Refresh data when reservations change
+        fetchReservations();
+        fetchReservationStats();
+      }
+    };
+    
+    window.addEventListener('reservationsChanged', handleReservationsChanged);
+    
+    // Clean up on unmount
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(intervalId);
+      window.removeEventListener('reservationsChanged', handleReservationsChanged);
+    };
+  }, []);
+  
+  // Function to run auto-cancellation process
+  const runAutoCancellation = async () => {
+    // Only run if it's been at least 1 minute since the last check
+    const now = Date.now();
+    if (now - lastAutoCheckTime < 60000) {
+      return; // Skip if checked recently
+    }
+    
+    try {
+      // Update last check time
+      setLastAutoCheckTime(now);
+      
+      // Call the service function
+      const result = await autoCancelPendingReservations();
+      
+      // If any reservations were cancelled, refresh the data
+      if (result && result.cancelledCount > 0) {
+        console.log(`Auto-cancelled ${result.cancelledCount} pending reservations`);
+        
+        // Only notify if there were actual cancellations
+        if (result.cancelledCount > 0) {
+          notify(`Auto-cancelled ${result.cancelledCount} pending reservations that were approaching their scheduled time`, 'info');
+        }
+        
+        // Refresh data after cancellations
+        fetchReservations();
+        fetchReservationStats();
+      }
+    } catch (error) {
+      console.error('Error in auto-cancellation process:', error);
+      // No user notification needed as this runs in the background
+    }
   };
   
   return (

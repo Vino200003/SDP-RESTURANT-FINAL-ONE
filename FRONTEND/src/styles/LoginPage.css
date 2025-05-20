@@ -61,9 +61,9 @@
   margin: -50px auto 40px;
   background-color: #fff;
   border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
   padding: 40px;
   position: relative;
+  color: #333;
 }
 
 .login-form-container {
@@ -72,7 +72,7 @@
 
 .login-form-container h1 {
   font-family: 'Playfair Display', serif;
-  color: #333;
+  color: #000000;
   margin-bottom: 30px;
   font-size: 2rem;
   text-align: center;
@@ -82,6 +82,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  opacity: 1;
+  visibility: visible;
 }
 
 .form-group {
@@ -138,30 +140,44 @@
   text-decoration: underline;
 }
 
-.login-button {
-  margin-top: 10px;
-  background-color: #d4af37;
-  color: white;
-  border: none;
-  padding: 14px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.login-form button.login-button {
+  margin-top: 30px !important;
+  background-color: #d4af37 !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  width: 100% !important;
+  display: block !important;
+  padding: 15px !important;
+  border-radius: 6px !important;
+  font-weight: 700 !important;
+  font-size: 1.1rem !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  text-shadow: none !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+  position: relative !important;
+  z-index: 10 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
-.login-button:hover {
-  background-color: #c19d2c;
-  transform: translateY(-2px);
+.login-form button.login-button:hover {
+  background-color: #bb9326 !important;
+  color: #000000 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.25) !important;
 }
 
 .login-button:disabled {
-  background-color: #cccccc;
+  background-color: #b3b3b3;
+  color: #333333;
+  border: 2px solid #666666;
   cursor: not-allowed;
   transform: none;
+  text-shadow: none;
+  opacity: 1;
 }
 
 .signup-link {

@@ -387,3 +387,38 @@ exports.setTableActiveStatus = (tableNo, isActive) => {
     });
   });
 };
+
+/**
+ * Cancel unconfirmed reservations that are approaching their scheduled time
+ * If a reservation is still 'Pending' and less than 2 hours before scheduled time,
+ * automatically mark it as 'Cancelled'
+ * @returns {Promise<Object>} - Result of the operation with count of cancelled reservations
+ */
+exports.cancelUnconfirmedReservations = () => {
+  return new Promise((resolve, reject) => {
+    // Find reservations that are:
+    // 1. In Pending status
+    // 2. Less than 2 hours away from their scheduled time
+    // 3. In the future (not past reservations)
+    const query = `
+      UPDATE reservations
+      SET status = 'Cancelled'
+      WHERE status = 'Pending'
+      AND date_time > NOW() 
+      AND date_time < DATE_ADD(NOW(), INTERVAL 2 HOUR)
+    `;
+    
+    db.query(query, (err, result) => {
+      if (err) {
+        console.error('Error cancelling unconfirmed reservations:', err);
+        reject(err);
+        return;
+      }
+      
+      resolve({
+        message: 'Auto-cancelled unconfirmed reservations',
+        cancelledCount: result.affectedRows
+      });
+    });
+  });
+};

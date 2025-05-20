@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const { isDateTimeAvailable, getAvailableTables, getAllTables, updateTableStatus, setTableActiveStatus } = require('../utils/reservationUtils');
+const { isDateTimeAvailable, getAvailableTables, getAllTables, updateTableStatus, setTableActiveStatus, cancelUnconfirmedReservations } = require('../utils/reservationUtils');
 const jwt = require('jsonwebtoken');
 
  //Get all reservations (admin only)
@@ -805,7 +805,6 @@ exports.getReservationStats = async (req, res) => {
 
 
 
-
 /**
  * Update reservation status (admin only)
  */
@@ -973,5 +972,26 @@ exports.createTable = (req, res) => {
   } catch (error) {
     console.error('Server error in createTable:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * Auto-cancel pending reservations less than 2 hours before scheduled time
+ * This can be called by the client periodically or through a CRON job
+ */
+exports.autoCancelPendingReservations = async (req, res) => {
+  try {
+    const result = await cancelUnconfirmedReservations();
+    
+    res.json({
+      message: 'Auto-cancellation process completed',
+      cancelledCount: result.cancelledCount
+    });
+  } catch (error) {
+    console.error('Error in auto-cancellation process:', error);
+    res.status(500).json({ 
+      message: 'Error processing auto-cancellations', 
+      error: error.message 
+    });
   }
 };

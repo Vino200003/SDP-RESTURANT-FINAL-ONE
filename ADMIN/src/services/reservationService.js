@@ -739,3 +739,121 @@ export const markReservationsAsRead = async () => {
     return { success: false };
   }
 };
+
+/**
+ * Trigger auto-cancellation of pending reservations less than 2 hours before scheduled time
+ * @returns {Promise<Object>} - Result with count of cancelled reservations
+ */
+export const autoCancelPendingReservations = async () => {
+  try {
+    // Check server availability first
+    const isServerAvailable = await checkServerAvailability();
+    
+    // If server is down, use in-memory processing instead
+    if (!isServerAvailable) {
+      return autoCancelInMemory();
+    }
+    
+    // Get admin token using our helper function
+    const token = getStoredAuthToken();
+    
+    if (!token) {
+      console.warn('No authentication token available for auto-cancellation');
+      return { cancelledCount: 0, inMemory: true };
+    }
+    
+    // Call the backend endpoint
+    const response = await fetch(`${API_URL}/api/reservations/auto-cancel`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      // If server endpoint doesn't exist, fall back to in-memory processing
+      if (response.status === 404) {
+        console.log('Auto-cancel endpoint not available, using in-memory processing');
+        return autoCancelInMemory();
+      }
+      
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to auto-cancel reservations');
+    }
+    
+    const result = await response.json();
+    
+    // If any reservations were cancelled, dispatch events to update UI
+    if (result.cancelledCount > 0) {
+      window.dispatchEvent(new CustomEvent('reservationsChanged'));
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in auto-cancel process:', error);
+    
+    // Fall back to in-memory processing
+    return autoCancelInMemory();
+  }
+};
+
+/**
+ * Process auto-cancellation in memory when server is unavailable
+ * @returns {Promise<Object>} - Result with count of cancelled reservations
+ */
+const autoCancelInMemory = async () => {
+  try {
+    // Get locally stored reservations from most recent fetch
+    const reservationsJson = localStorage.getItem('cachedReservations');
+    if (!reservationsJson) {
+      return { cancelledCount: 0, inMemory: true };
+    }
+    
+    const reservations = JSON.parse(reservationsJson);
+    const now = new Date();
+    const twoHoursFromNow = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+    let cancelledCount = 0;
+    
+    // Get saved statuses
+    const statusesJson = localStorage.getItem('reservationStatuses') || '{}';
+    const statuses = JSON.parse(statusesJson);
+    
+    // Process each reservation
+    reservations.forEach(reservation => {
+      const reservationId = reservation.reserve_id || reservation.reservation_id;
+      const reservationTime = new Date(reservation.date_time);
+      const currentStatus = statuses[reservationId] || reservation.status || 'Pending';
+      
+      // If it's pending and less than 2 hours away, cancel it
+      if (currentStatus === 'Pending' && 
+          reservationTime > now && 
+          reservationTime < twoHoursFromNow) {
+        
+        statuses[reservationId] = 'Cancelled';
+        cancelledCount++;
+        
+        // Dispatch event for this specific reservation
+        window.dispatchEvent(new CustomEvent('reservationStatusChanged', {
+          detail: { reservationId, status: 'Cancelled' }
+        }));
+      }
+    });
+    
+    // Save updated statuses
+    if (cancelledCount > 0) {
+      localStorage.setItem('reservationStatuses', JSON.stringify(statuses));
+      // Dispatch event to notify components about the changes
+      window.dispatchEvent(new CustomEvent('reservationsChanged'));
+    }
+    
+    return {
+      cancelledCount,
+      inMemory: true,
+      message: 'Auto-cancellation processed in memory'
+    };
+  } catch (error) {
+    console.error('Error in in-memory auto-cancellation:', error);
+    return { cancelledCount: 0, inMemory: true, error: error.message };
+  }
+};
