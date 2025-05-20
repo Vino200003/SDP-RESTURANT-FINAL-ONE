@@ -319,12 +319,18 @@ export const createReservation = async (reservationData) => {
     });
     
     const data = await response.json();
-    
-    if (!response.ok) {
+      if (!response.ok) {
       // Enhanced error handling for conflicts and other errors
       if (response.status === 409) {
-        console.error('Table reservation conflict:', data.message);
-        throw new Error(data.message || 'Sorry, this table is already reserved at the selected time. Please choose a different table or time.');
+        const conflictMsg = data.message || 'Sorry, this table is already reserved at the selected time. Please choose a different table or time.';
+        console.error('Table reservation conflict:', conflictMsg);
+        
+        // Make sure any table conflict errors are consistently formatted
+        if (conflictMsg.includes('Table') && !conflictMsg.includes('already reserved')) {
+          throw new Error(`Table ${data.tableNo || ''} is already reserved. ${conflictMsg}`);
+        } else {
+          throw new Error(conflictMsg);
+        }
       }
       throw new Error(data.message || 'Failed to create reservation');
     }

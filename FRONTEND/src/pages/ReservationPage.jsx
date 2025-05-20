@@ -121,8 +121,7 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
       setIsLoadingTables(false);
     }
   };
-
-  // Generate time slots (11:00 AM to 9:00 PM, 30-minute intervals)
+  // Generate time slots based on operating hours for the selected date
   const generateTimeSlots = (selectedDate) => {
     const slots = [];
     const currentDate = new Date();
@@ -134,9 +133,23 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
       currentDate.getMonth() === reservationDate.getMonth() &&
       currentDate.getFullYear() === reservationDate.getFullYear();
     
-    // Restaurant hours
-    let startHour = 11; // 11:00 AM
-    const endHour = 21; // 9:00 PM
+    // Get day of week (0-6, where 0 is Sunday)
+    const dayOfWeek = reservationDate.getDay();
+    
+    // Set operating hours based on day of week
+    // Monday-Friday (1-5): 12:00 PM (12) to 10:00 PM (22)
+    // Saturday-Sunday (0,6): 10:00 AM (10) to 11:00 PM (23)
+    let startHour, endHour;
+    
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      // Weekday (Monday-Friday)
+      startHour = 12; // 12:00 PM
+      endHour = 22;   // 10:00 PM
+    } else {
+      // Weekend (Saturday-Sunday)
+      startHour = 10; // 10:00 AM
+      endHour = 23;   // 11:00 PM
+    }
     
     // If today, only show times after current time plus 1 hour buffer
     if (isToday) {
@@ -144,6 +157,7 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
       startHour = Math.max(startHour, currentHour + 1);
     }
     
+    // Generate 30-minute slots from opening until closing (last slot is 30 minutes before closing)
     for (let hour = startHour; hour < endHour; hour++) {
       // Add half-hour slots
       slots.push(`${hour}:00`);
@@ -151,6 +165,38 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
     }
     
     return slots;
+  };
+  // Calculate max duration for a given time slot (considering closing time)
+  const calculateMaxDuration = (timeSlot) => {
+    // Get day of week (0-6, where 0 is Sunday)
+    const reservationDate = formData.date ? new Date(formData.date) : new Date();
+    const dayOfWeek = reservationDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Set closing hours based on day of week
+    // Monday-Friday (1-5): 10:00 PM (22:00)
+    // Saturday-Sunday (0,6): 11:00 PM (23:00)
+    let closingHour;
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      // Weekday (Monday-Friday)
+      closingHour = 22; // 10:00 PM
+    } else {
+      // Weekend (Saturday-Sunday)
+      closingHour = 23; // 11:00 PM
+    }
+    
+    const closingMinutes = 0;
+    const closingTimeMinutes = closingHour * 60 + closingMinutes;
+    
+    const [hours, minutes] = timeSlot.split(':');
+    const slotHour = parseInt(hours, 10);
+    const slotMinutes = parseInt(minutes, 10);
+    const slotTimeMinutes = slotHour * 60 + slotMinutes;
+    
+    // Calculate max duration in minutes
+    const maxDurationMinutes = closingTimeMinutes - slotTimeMinutes;
+    
+    // Return max duration in minutes, but cap at 3 hours (180 minutes)
+    return Math.min(maxDurationMinutes, 180);
   };
 
   // Generate available dates (today + next 30 days)
@@ -185,6 +231,56 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
         [name]: ''
       });
     }
+    
+    // Special handling for time changes - adjust duration if needed
+    if (name === 'time' && value) {
+      const maxDuration = calculateMaxDuration(value);
+      const currentDuration = parseInt(formData.duration, 10);
+        // If current selected duration exceeds max available duration for this time slot
+      if (currentDuration > maxDuration) {
+        // Auto-adjust to maximum available duration
+        const adjustedDuration = Math.floor(maxDuration / 30) * 30; // Round down to nearest 30 min increment
+        const newDuration = adjustedDuration >= 60 ? adjustedDuration.toString() : '60'; // Minimum 60 min
+        
+        setFormData(prev => ({
+          ...prev,
+          duration: newDuration
+        }));
+        
+        // Determine closing time based on day of week
+        const reservationDate = formData.date ? new Date(formData.date) : new Date();
+        const dayOfWeek = reservationDate.getDay();
+        const closingTime = dayOfWeek >= 1 && dayOfWeek <= 5 ? "10:00 PM" : "11:00 PM";
+        
+        // Show a temporary message
+        setSubmitError(`Duration adjusted to ${newDuration} minutes based on closing time (${closingTime})`);
+        setTimeout(() => setSubmitError(''), 5000); // Clear after 5 seconds
+      }
+    }
+    
+    // Table selection validation
+    if (name === 'table' && value && formData.date && formData.time) {
+      // Check if the selected table is actually available
+      const isTableAvailable = availableTables.some(
+        table => table.table_no.toString() === value && table.available === true
+      );
+      
+      if (!isTableAvailable) {
+        // Table is in the list but not available
+        const timeDisplay = formatTimeDisplay(formData.time);
+        const dateDisplay = new Date(formData.date).toLocaleDateString();
+        
+        setErrors(prev => ({
+          ...prev,
+          table: `Table ${value} is already reserved at this time`
+        }));
+        
+        setSubmitError(`Warning: Table ${value} appears to be already reserved on ${dateDisplay} at ${timeDisplay}. Please select a different table.`);
+      } else {
+        // Clear any previous errors if the table is available
+        setSubmitError('');
+      }
+    }
   };
 
   // Validate form before submission
@@ -195,6 +291,39 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.time) newErrors.time = 'Time is required';
     if (!formData.table) newErrors.table = 'Table selection is required';
+      // Check if reservation extends beyond closing time
+    if (formData.time && formData.duration && formData.date) {
+      const reservationDate = new Date(formData.date);
+      const dayOfWeek = reservationDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      
+      // Set closing hours based on day of week
+      let closingHour, closingTimeDisplay;
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        // Weekday (Monday-Friday)
+        closingHour = 22; // 10:00 PM
+        closingTimeDisplay = "10:00 PM";
+      } else {
+        // Weekend (Saturday-Sunday)
+        closingHour = 23; // 11:00 PM
+        closingTimeDisplay = "11:00 PM";
+      }
+      
+      const [hours, minutes] = formData.time.split(':');
+      const startHour = parseInt(hours, 10);
+      const startMinutes = parseInt(minutes, 10);
+      const durationMinutes = parseInt(formData.duration, 10);
+      
+      // Calculate end time in minutes since midnight
+      const startTimeInMinutes = startHour * 60 + startMinutes;
+      const endTimeInMinutes = startTimeInMinutes + durationMinutes;
+      
+      // Calculate closing time in minutes
+      const closingTimeInMinutes = closingHour * 60;
+      
+      if (endTimeInMinutes > closingTimeInMinutes) {
+        newErrors.duration = `Reservation would extend beyond our closing time (${closingTimeDisplay}). Please choose a shorter duration or earlier time.`;
+      }
+    }
     
     return newErrors;
   };
@@ -248,7 +377,16 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
           const dateDisplay = new Date(formData.date).toLocaleDateString();
           const tableNo = formData.table;
           
-          setSubmitError(`Sorry, Table ${tableNo} is already reserved on ${dateDisplay} at ${timeDisplay}. Please select a different table or choose another time.`);
+          const errorMessage = `Sorry, Table ${tableNo} is already reserved on ${dateDisplay} at ${timeDisplay}. Please select a different table or choose another time.`;
+          
+          // Set error and show prominently
+          setSubmitError(errorMessage);
+          
+          // Add visual indication - highlight the table dropdown
+          setErrors(prev => ({
+            ...prev,
+            table: 'This table is already reserved'
+          }));
           
           setIsSubmitting(false);
           await fetchAvailableTables(formData.date, formData.time);
@@ -301,12 +439,20 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
       
       // Scroll to top to show success message
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-    } catch (error) {
+        } catch (error) {
       console.error('Reservation error:', error);
       
       // Display the error message prominently
-      setSubmitError(error.message || 'An error occurred while making your reservation. Please try again.');
+      const errorMessage = error.message || 'An error occurred while making your reservation. Please try again.';
+      setSubmitError(errorMessage);
+      
+      // If this is a table conflict error, also highlight the table selection field
+      if (errorMessage.includes('Table') && (errorMessage.includes('already reserved') || errorMessage.includes('conflict'))) {
+        setErrors(prev => ({
+          ...prev,
+          table: 'This table is already reserved'
+        }));
+      }
       
       // If there was an error, refresh the available tables list
       if (formData.date && formData.time) {
@@ -376,9 +522,8 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
         ) : (
           <div className="reservation-form-container">
             <h1>Make a Reservation</h1>
-            
-            {submitError && (
-              <div className="reservation-error-message">
+              {submitError && (
+              <div className={`reservation-error-message ${submitError.includes('already reserved') || submitError.includes('Table') ? 'table-already-booked-error' : ''}`}>
                 <i className="fas fa-exclamation-triangle"></i>
                 <span>{submitError}</span>
               </div>
@@ -415,11 +560,17 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
                       disabled={!formData.date}
                     >
                       <option value="">Select a time</option>
-                      {availableTimes.map((time, index) => (
-                        <option key={index} value={time}>
-                          {formatTimeDisplay(time)}
-                        </option>
-                      ))}
+                      {availableTimes.map((time, index) => {
+                        const maxDuration = calculateMaxDuration(time);
+                        const limitedDuration = maxDuration < 180;
+                        
+                        return (
+                          <option key={index} value={time}>
+                            {formatTimeDisplay(time)}
+                            {limitedDuration ? ` (max ${Math.floor(maxDuration/60)}h)` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                     {errors.time && <span className="error-text">{errors.time}</span>}
                     {!formData.date && <span className="help-text">Please select a date first</span>}
@@ -488,6 +639,7 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
                       name="duration"
                       value={formData.duration}
                       onChange={handleChange}
+                      className={errors.duration ? 'error' : ''}
                     >
                       <option value="60">1 hour</option>
                       <option value="90">1.5 hours</option>
@@ -495,6 +647,7 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
                       <option value="150">2.5 hours</option>
                       <option value="180">3 hours</option>
                     </select>
+                    {errors.duration && <span className="error-text">{errors.duration}</span>}
                   </div>
                   <div className="form-group">
                     <label htmlFor="occasion">Special Occasion (Optional)</label>
@@ -551,8 +704,7 @@ const ReservationPage = () => {  // Form state - remove contact information fiel
           </div>
         )}
         
-        <div className="restaurant-info">
-          <div className="info-section">
+        <div className="restaurant-info">          <div className="info-section">
             <h3>Opening Hours</h3>
             <div className="hours-list">
               <div className="hours-item">
