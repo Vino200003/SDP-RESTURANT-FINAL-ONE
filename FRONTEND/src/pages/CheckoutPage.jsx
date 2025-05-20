@@ -220,6 +220,23 @@ const CheckoutPage = () => {
     const newTotal = newSubtotal + newServiceFee + deliveryFee;
     setTotal(newTotal);
   }, [cart, deliveryMethod, deliveryFee]);
+  
+  // Effect to reset pickup time when date changes
+  useEffect(() => {
+    // Check if current time is no longer available when date changes
+    if (formData.pickupDate && formData.pickupTime) {
+      const isCurrentTimeAvailable = isTimeSlotAvailable(formData.pickupTime, formData.pickupDate);
+      
+      if (!isCurrentTimeAvailable) {
+        // Reset pickup time if it's not available for the selected date
+        setFormData(prevData => ({
+          ...prevData,
+          pickupTime: ''
+        }));
+      }
+    }
+  }, [formData.pickupDate]);
+  
   // Fetch available tables when dine-in is selected
   useEffect(() => {
     if (deliveryMethod === 'dine-in') {
@@ -367,6 +384,46 @@ const CheckoutPage = () => {
   // Available time slots
   const timeSlots = generateTimeSlots();
   
+  // Check if a time slot is available based on the selected date
+  const isTimeSlotAvailable = (timeSlot, selectedDate) => {
+    // If not today, all slots are available
+    if (!selectedDate || selectedDate !== new Date().toISOString().split('T')[0]) {
+      return true;
+    }
+    
+    // For today, check if the time has already passed
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Parse the time slot
+    const isPM = timeSlot.includes('PM') && !timeSlot.includes('12:');
+    const is12PM = timeSlot.includes('12:') && timeSlot.includes('PM');
+    const is12AM = timeSlot.includes('12:') && timeSlot.includes('AM');
+    
+    const timeMatch = timeSlot.match(/(\d+):(\d+)/);
+    if (!timeMatch) return false;
+    
+    let hour = parseInt(timeMatch[1], 10);
+    const minute = parseInt(timeMatch[2], 10);
+    
+    // Convert to 24-hour format
+    if (isPM) {
+      hour += 12;
+    } else if (is12PM) {
+      hour = 12;
+    } else if (is12AM) {
+      hour = 0;
+    }
+    
+    // Compare with current time
+    if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
+      return false;
+    }
+    
+    return true;
+  };
+  
   // Generate available dates for pickup (today + next 7 days)
   const generateAvailableDates = () => {
     const dates = [];
@@ -415,11 +472,15 @@ const CheckoutPage = () => {
       }
       
       // Always validate Zone ID for delivery regardless of editing status
-      if (!formData.zoneId) errors.zoneId = 'Delivery zone is required';
-    } else if (deliveryMethod === 'pickup') {
+      if (!formData.zoneId) errors.zoneId = 'Delivery zone is required';    } else if (deliveryMethod === 'pickup') {
       // Validate pickup date and time
       if (!formData.pickupDate) errors.pickupDate = 'Pickup date is required';
       if (!formData.pickupTime) errors.pickupTime = 'Pickup time is required';
+      
+      // Check if selected time is still valid
+      if (formData.pickupDate && formData.pickupTime && !isTimeSlotAvailable(formData.pickupTime, formData.pickupDate)) {
+        errors.pickupTime = 'This time is no longer available. Please select a future time.';
+      }
     } else if (deliveryMethod === 'dine-in') {
       // Validate table selection for dine-in
       if (!formData.tableNo) errors.tableNo = 'Please select a table';
@@ -1084,13 +1145,21 @@ const CheckoutPage = () => {
                           className={formErrors.pickupTime ? 'error' : ''}
                         >
                           <option value="">Select Time</option>
-                          {timeSlots.map((time, index) => (
-                            <option key={index} value={time}>
-                              {time}
-                            </option>
-                          ))}
+                          {timeSlots.map((time, index) => {
+                            const isAvailable = isTimeSlotAvailable(time, formData.pickupDate);
+                            return isAvailable ? (
+                              <option key={index} value={time}>
+                                {time}
+                              </option>
+                            ) : null;
+                          })}
                         </select>
                         {formErrors.pickupTime && <span className="error-text">{formErrors.pickupTime}</span>}
+                        {formData.pickupDate === new Date().toISOString().split('T')[0] && (
+                          <p className="pickup-time-note">
+                            <i className="fas fa-info-circle"></i> For today, only future time slots are available.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
