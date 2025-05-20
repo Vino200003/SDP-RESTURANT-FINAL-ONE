@@ -131,7 +131,6 @@ const ProfilePage = () => {
       fetchReservations();
     }
   }, [activeTab]);
-
   // Fetch order history when the orders tab is active
   const fetchOrderHistory = async () => {
     try {
@@ -139,8 +138,21 @@ const ProfilePage = () => {
         setIsLoading(true);
         setSubmitError(''); // Clear any previous errors
         console.log('Fetching orders...');
+        
+        // Get the current user information
+        const userData = JSON.parse(localStorage.getItem('user')) || {};
+        const userId = userData.id || userData.user_id;
+        
+        if (!userId) {
+          console.error('User ID not found in local storage');
+          setOrderHistory([]);
+          return;
+        }
+        
+        // Get orders for the current user
         const ordersData = await getUserOrders();
-        console.log('Received orders:', ordersData);
+        console.log(`Received ${ordersData.length} orders for user ID ${userId}`);
+        
         setOrderHistory(Array.isArray(ordersData) ? ordersData : []);
         
         if (Array.isArray(ordersData) && ordersData.length === 0) {

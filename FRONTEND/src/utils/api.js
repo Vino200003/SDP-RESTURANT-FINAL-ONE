@@ -630,6 +630,15 @@ export const getUserOrders = async () => {
       throw new Error('Authentication required');
     }
     
+    // Get user data from local storage
+    const userData = JSON.parse(localStorage.getItem('user')) || {};
+    const userId = userData.id || userData.user_id;
+    
+    if (!userId) {
+      console.error('User ID not found in local storage');
+      return [];
+    }
+    
     // Use the main orders endpoint that worked
     const response = await fetch('http://localhost:5000/api/orders', {
       method: 'GET',
@@ -651,7 +660,13 @@ export const getUserOrders = async () => {
     
     const data = await response.json();
     console.log('Orders successfully retrieved from: http://localhost:5000/api/orders');
-    return Array.isArray(data) ? data : (data.orders || []);
+    
+    // Filter orders to only include those belonging to the current user
+    const allOrders = Array.isArray(data) ? data : (data.orders || []);
+    const userOrders = allOrders.filter(order => order.user_id === userId);
+    
+    console.log(`Filtered ${allOrders.length} orders to ${userOrders.length} for user ID ${userId}`);
+    return userOrders;
   } catch (error) {
     console.error('API error fetching orders:', error);
     // If there's an error, return an empty array instead of throwing
