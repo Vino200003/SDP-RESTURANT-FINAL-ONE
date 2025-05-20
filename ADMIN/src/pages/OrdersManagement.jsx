@@ -280,7 +280,6 @@ function OrdersManagement() {
       notify(`Error updating order status: ${error.message}`, 'error');
     }
   };
-
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     
@@ -292,6 +291,24 @@ function OrdersManagement() {
       minute: '2-digit'
     };
     return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+  
+  // Function to handle modal scroll behavior and show/hide scroll indicators
+  const handleModalScroll = (event) => {
+    const { scrollTop, scrollHeight, clientHeight } = event.target;
+    
+    // Calculate scroll percentage
+    const scrollPercentage = scrollTop / (scrollHeight - clientHeight);
+    
+    // Show or hide scroll hint based on scroll position
+    const scrollHint = document.querySelector('.scroll-hint');
+    if (scrollHint) {
+      if (scrollPercentage > 0.1) {
+        scrollHint.style.opacity = '0';
+      } else {
+        scrollHint.style.opacity = '1';
+      }
+    }
   };
 
   const getStatusClass = (status) => {
@@ -501,22 +518,23 @@ function OrdersManagement() {
             )}
           </div>
         )}
-        
-        {/* Order Details Modal */}
+          {/* Order Details Modal */}
         {isDetailsModalOpen && selectedOrder && (
           <div className="modal-overlay">
             <div className="modal-content order-details-modal">
               <div className="modal-header">
                 <h2>Order #{selectedOrder.order_id} Details</h2>
-                <button 
-                  className="close-modal-btn"
-                  onClick={() => setIsDetailsModalOpen(false)}
-                >
-                  &times;
-                </button>
+                <div className="modal-header-actions">
+                  <small className="scroll-hint">Scroll for more details ↓</small>
+                  <button 
+                    className="close-modal-btn"
+                    onClick={() => setIsDetailsModalOpen(false)}
+                  >
+                    &times;
+                  </button>
+                </div>
               </div>
-              
-              <div className="order-details-content">
+                <div className="order-details-content" onScroll={handleModalScroll}>
                 <div className="order-info-section">
                   <div className="order-info-group">
                     <h3>Order Information</h3>
@@ -631,25 +649,7 @@ function OrdersManagement() {
                     {selectedOrder.paid_at && <p><strong>Paid At:</strong> {formatDate(selectedOrder.paid_at)}</p>}
                   </div>
                 </div>
-                
-                <div className="order-actions-footer">
-                  <select 
-                    value={selectedOrder.order_status}
-                    onChange={(e) => {
-                      handleUpdateStatus(selectedOrder.order_id, e.target.value);
-                      setSelectedOrder({...selectedOrder, order_status: e.target.value});
-                    }}
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                  
-                  <button className="print-order-btn">
-                    Print Order
-                  </button>
-                  
+                  <div className="order-actions-footer">
                   <button 
                     className="close-details-btn"
                     onClick={() => setIsDetailsModalOpen(false)}

@@ -632,7 +632,6 @@ function DeliveryManagement() {
     };
     return new Date(dateString).toLocaleString(undefined, options);
   };
-
   // Get class name for status badges
   const getStatusClass = (status) => {
     switch (status) {
@@ -648,6 +647,21 @@ function DeliveryManagement() {
       case 'Ready': return 'status-ready';
       case 'Cancelled': return 'status-cancelled';
       default: return '';
+    }
+  };
+  
+  // Function to handle modal scroll behavior and show/hide scroll indicators
+  const handleModalScroll = (event) => {
+    const { scrollTop } = event.target;
+    
+    // Show or hide scroll hint based on scroll position
+    const scrollHint = document.querySelector('.scroll-hint');
+    if (scrollHint) {
+      if (scrollTop > 50) {
+        scrollHint.style.opacity = '0';
+      } else {
+        scrollHint.style.opacity = '1';
+      }
     }
   };
 
@@ -1372,18 +1386,19 @@ function DeliveryManagement() {
         {/* Order Details Modal */}
         {isOrderDetailsModalOpen && selectedOrder && (
           <div className="modal-overlay">
-            <div className="modal-content">
-              <div className="modal-header">
+            <div className="modal-content">              <div className="modal-header">
                 <h2>Order #{selectedOrder.order_id} Details</h2>
-                <button 
-                  className="close-modal-btn"
-                  onClick={() => setIsOrderDetailsModalOpen(false)}
-                >
-                  &times;
-                </button>
+                <div className="modal-header-actions">
+                  <small className="scroll-hint">Scroll for more details ↓</small>
+                  <button 
+                    className="close-modal-btn"
+                    onClick={() => setIsOrderDetailsModalOpen(false)}
+                  >
+                    &times;
+                  </button>
+                </div>
               </div>
-              
-              <div className="modal-body">
+                <div className="modal-body" onScroll={handleModalScroll}>
                 <div className="order-details-section">
                   <h3>Customer Information</h3>
                   <p><strong>Name:</strong> {selectedOrder.customer_name}</p>

@@ -913,8 +913,24 @@
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   animation: modalFadeIn 0.3s ease;
+  position: relative;
+}
+
+.modal-content::after {
+  content: '';
+  position: absolute;
+  bottom: 60px; /* Position above the action buttons */
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 4;
 }
 
 @keyframes modalFadeIn {
@@ -934,6 +950,11 @@
   align-items: center;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid #e9ecef;
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+  border-radius: 12px 12px 0 0;
 }
 
 .modal-header h2 {
@@ -943,6 +964,26 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.scroll-hint {
+  color: #6c757d;
+  font-size: 0.8rem;
+  font-style: italic;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
 }
 
 .modal-header h2 i {
@@ -964,6 +1005,28 @@
 
 .modal-body {
   padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 80px); /* Subtract header height */
+  scrollbar-width: thin;
+}
+
+/* Custom scrollbar styles */
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }
 
 .form-row {
@@ -1151,6 +1214,11 @@
   color: #495057;
 }
 
+.order-details-section {
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
 .order-items-table {
   width: 100%;
   border-collapse: collapse;
@@ -1158,6 +1226,7 @@
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 0 0 1px #e9ecef;
+  min-width: 450px;
 }
 
 .order-items-table th {
@@ -1191,7 +1260,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin: 1.5rem -1.5rem -1.5rem;
+  padding: 1rem 1.5rem;
+  background-color: white;
+  border-top: 1px solid #e9ecef;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
 }
 
 .order-details-actions button {
@@ -1311,6 +1386,35 @@
   
   .delivery-page-header {
     padding: 1rem;
+  }
+  
+  /* Modal responsive styles */
+  .modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+    max-height: calc(95vh - 80px);
+  }
+  
+  .modal-header {
+    padding: 1rem;
+  }
+  
+  .order-details-actions {
+    margin: 1rem -1rem -1rem;
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+  }
+  
+  .order-details-actions button {
+    margin: 0.25rem 0;
+  }
+  
+  .scroll-hint {
+    font-size: 0.75rem;
   }
   
   .section-header {
