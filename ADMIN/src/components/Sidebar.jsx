@@ -46,16 +46,10 @@ function Sidebar() {
       name: 'Inventory',
       path: '/inventory',
       icon: '📦'
-    },
-    {
+    },    {
       name: 'Staff Management',
       path: '/staff',
       icon: '👥'
-    },
-    {
-      name: 'Staff Attendance',
-      path: '/staff-attendance',
-      icon: '⏱️'
     },
     {
       name: 'Delivery Management',
