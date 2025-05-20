@@ -71,12 +71,14 @@ exports.getAllOrders = (req, res) => {
 exports.getOrderById = (req, res) => {
   const orderId = req.params.id;
   
-  // Get order details
+  // Get order details with delivery zone information
   const orderQuery = `
-    SELECT o.*, u.user_id, u.email, u.phone_number, s.staff_id 
+    SELECT o.*, u.user_id, u.email, u.phone_number, s.staff_id,
+           dz.gs_division as zone_name, dz.estimated_delivery_time_min
     FROM orders o
     LEFT JOIN users u ON o.user_id = u.user_id
     LEFT JOIN staff s ON o.delivery_person_id = s.staff_id
+    LEFT JOIN delivery_zones dz ON o.zone_id = dz.zone_id
     WHERE o.order_id = ?
   `;
   

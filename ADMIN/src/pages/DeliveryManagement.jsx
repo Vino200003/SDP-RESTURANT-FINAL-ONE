@@ -1080,13 +1080,13 @@ function DeliveryManagement() {
                                   setIsEditZoneModalOpen(true);
                                 }}
                               >
-                                <i className="fas fa-edit"></i> Edit
+                                <i className="fas fa-edit"></i> 
                               </button>
                               <button 
                                 className="delete-btn"
                                 onClick={() => handleDeleteZone(zone.id)}
                               >
-                                <i className="fas fa-trash"></i> Delete
+                                <i className="fas fa-trash"></i> 
                               </button>
                             </div>
                           </td>

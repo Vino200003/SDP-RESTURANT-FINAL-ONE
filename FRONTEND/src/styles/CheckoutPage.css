@@ -412,6 +412,17 @@
   color: #555;
 }
 
+.summary-row.estimated-time {
+  background-color: #f5f9ff;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  border-bottom: none;
+  color: #2e5cb8;
+  font-weight: 500;
+}
+
 .summary-row.total {
   border-bottom: none;
   font-size: 1.2rem;

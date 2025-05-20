@@ -1259,12 +1259,18 @@ const CheckoutPage = () => {
                     <div className="summary-row">
                       <span>Service Fee (5%)</span>
                       <span>LKR {formatPrice(serviceFee)}</span>
-                    </div>
-                    {deliveryMethod === 'delivery' && (
-                      <div className="summary-row" ref={deliveryFeeRef}>
-                        <span>Delivery Fee</span>
-                        <span>LKR {formatPrice(deliveryFee)}</span>
-                      </div>
+                    </div>                    {deliveryMethod === 'delivery' && (
+                      <>
+                        <div className="summary-row" ref={deliveryFeeRef}>
+                          <span>Delivery Fee</span>
+                          <span>LKR {formatPrice(deliveryFee)}</span>
+                        </div>                        {selectedZone && (selectedZone.estimated_delivery_time_min || selectedZone.estimated_time) && (
+                          <div className="summary-row estimated-time">
+                            <span><i className="fas fa-clock"></i> Estimated Delivery Time</span>
+                            <span>{selectedZone.estimated_delivery_time_min || selectedZone.estimated_time} minutes</span>
+                          </div>
+                        )}
+                      </>
                     )}
                     <div className="summary-row total">
                       <span>Total</span>

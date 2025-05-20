@@ -911,6 +911,38 @@
   cursor: not-allowed;
 }
 
+/* Estimated Delivery Time styles */
+.estimated-delivery-time {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-left: 3px solid #d4af37;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.delivery-zone-info {
+  margin: 15px 0;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.delivery-zone-info p {
+  margin: 5px 0;
+}
+
+.delivery-zone-info .zone-name {
+  font-weight: bold;
+  color: #495057;
+}
+
+.delivery-zone-info .estimated-time {
+  font-weight: 500;
+  color: #d4af37;
+}
+
 /* Media Queries */
 @media screen and (max-width: 1024px) {
   .profile-content-area {

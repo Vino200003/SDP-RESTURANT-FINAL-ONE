@@ -14,7 +14,9 @@ import {
   getAllTables,
   getAvailableTables,
   updateReservation,
-  cancelReservation
+  cancelReservation,
+  // Import for delivery zone information
+  getDeliveryZones
 } from '../utils/api';
 import '../styles/ProfilePage.css';
 
@@ -290,20 +292,44 @@ const ProfilePage = () => {
   const formatPrice = (price) => {
     return `LKR ${parseFloat(price).toFixed(2)}`;
   };
-
   // Add function to open order details modal
   const handleViewOrderDetails = async (order) => {
     try {
-      setIsLoading(true);
-      // If the order doesn't have items, fetch them
-      if (!order.items || order.items.length === 0) {
+      setIsLoading(true);      // If the order doesn't have items or is delivery type, fetch full details
+      if (!order.items || order.items.length === 0 || order.order_type === 'Delivery') {
         try {
           const orderDetails = await getOrderDetails(order.order_id);
+          
+          // If this is a delivery order but no zone info is available, fetch delivery zones
+          let zoneInfo = {};
+          if (order.order_type === 'Delivery' && orderDetails.zone_id && (!orderDetails.zone_name || !orderDetails.estimated_delivery_time_min)) {
+            try {
+              const zones = await getDeliveryZones();
+              const matchingZone = zones.find(z => 
+                (z.id && z.id === orderDetails.zone_id) || 
+                (z.zone_id && z.zone_id === orderDetails.zone_id)
+              );
+              
+              if (matchingZone) {
+                zoneInfo = {
+                  zone_name: matchingZone.gs_division || matchingZone.name,
+                  estimated_delivery_time_min: matchingZone.estimated_delivery_time_min || matchingZone.estimated_time
+                };
+              }
+            } catch (zoneError) {
+              console.error('Error fetching delivery zones:', zoneError);
+            }
+          }
+          
           setSelectedOrder({
             ...order, 
             items: orderDetails.items || [],
             delivery_address: orderDetails.delivery_address || order.delivery_address || '',
-            special_instructions: orderDetails.special_instructions || order.special_instructions || ''
+            special_instructions: orderDetails.special_instructions || order.special_instructions || '',
+            // Add delivery zone details
+            zone_id: orderDetails.zone_id || order.zone_id,
+            zone_name: orderDetails.zone_name || zoneInfo.zone_name,
+            estimated_delivery_time_min: orderDetails.estimated_delivery_time_min || zoneInfo.estimated_delivery_time_min
           });
         } catch (detailsError) {
           console.error('Error fetching detailed order items:', detailsError);
@@ -963,10 +989,20 @@ const ProfilePage = () => {
                     <div className="modal-body">
                       <div className="order-details-header">
                         <div className="order-details-info">
-                          <p><strong>Order #:</strong> {selectedOrder.order_id}</p>
-                          <p><strong>Date:</strong> {formatDate(selectedOrder.created_at)}</p>
+                          <p><strong>Order #:</strong> {selectedOrder.order_id}</p>                          <p><strong>Date:</strong> {formatDate(selectedOrder.created_at)}</p>
                           <p><strong>Status:</strong> <span className={`status-${selectedOrder.kitchen_status === 'Preparing' ? 'confirmed' : selectedOrder.order_status.toLowerCase().replace(' ', '-')}`}>{selectedOrder.kitchen_status === 'Preparing' ? 'Confirmed' : selectedOrder.order_status}</span></p>
                           <p><strong>Type:</strong> {selectedOrder.order_type}</p>
+                            {/* Show estimated delivery time for delivery orders */}
+                          {selectedOrder.order_type === 'Delivery' && (
+                            <div className="delivery-zone-info">
+                              {selectedOrder.zone_name && (
+                                <p className="zone-name"><i className="fas fa-map-marker-alt"></i> Delivery Zone: {selectedOrder.zone_name}</p>
+                              )}
+                              {selectedOrder.estimated_delivery_time_min && (
+                                <p className="estimated-time"><i className="fas fa-clock"></i> Estimated Delivery Time: {selectedOrder.estimated_delivery_time_min} minutes</p>
+                              )}
+                            </div>
+                          )}
                           
                           {/* Conditional rendering for delivery address */}
                           {selectedOrder.order_type === 'Delivery' && (
