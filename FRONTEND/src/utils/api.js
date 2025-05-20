@@ -246,20 +246,33 @@ export const getMenuItemsByCategory = async (categoryCode) => {
  */
 export const getAllTables = async () => {
   try {
-    const response = await fetch(`${API_URL}/reservations/tables`, {
+    console.log('Fetching tables from API...');
+    const apiUrl = `${API_URL}/reservations/tables`;
+    console.log('API URL:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-      },
-      credentials: 'include'
+      }
+      // Removed credentials: 'include' as it might cause issues with CORS
     });
     
+    console.log('Response status:', response.status);
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to fetch tables');
+      let errorMessage = `Failed to fetch tables: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (jsonError) {
+        console.error('Error parsing error response:', jsonError);
+      }
+      throw new Error(errorMessage);
     }
     
     const data = await response.json();
+    console.log('Fetched tables data:', data);
     return data;
   } catch (error) {
     console.error('API error fetching tables:', error);
@@ -290,6 +303,44 @@ export const getAvailableTables = async (dateTime) => {
     }
     
     console.log(`Retrieved ${data.length} tables with availability information`);
+    return data;
+  } catch (error) {
+    console.error('API error fetching available tables:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get tables available at the current time
+ * @returns {Promise<Array>} Array of available tables
+ */
+export const getAvailableTablesForNow = async () => {
+  try {
+    const currentDateTime = new Date().toISOString();
+    console.log('Fetching available tables for current time:', currentDateTime);
+    
+    const response = await fetch(`${API_URL}/reservations/available-tables?dateTime=${encodeURIComponent(currentDateTime)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    console.log('Available tables response status:', response.status);
+    
+    if (!response.ok) {
+      let errorMessage = `Failed to fetch available tables: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (jsonError) {
+        console.error('Error parsing error response:', jsonError);
+      }
+      throw new Error(errorMessage);
+    }
+    
+    const data = await response.json();
+    console.log('Available tables data:', data);
     return data;
   } catch (error) {
     console.error('API error fetching available tables:', error);

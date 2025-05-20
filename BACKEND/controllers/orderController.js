@@ -210,6 +210,21 @@ exports.createOrder = (req, res) => {
           });
         });
       }
+        // Process payment if payment method is card
+      if (payment_method === 'card') {
+        // For now, just simulate payment success
+        // In a real application, you would integrate with a payment gateway here
+        const paymentSuccessful = true; // Simulate successful payment
+        
+        if (!paymentSuccessful) {
+          return db.rollback(() => {
+            res.status(402).json({ message: 'Payment processing failed' });
+          });
+        }
+        
+        // If payment is successful, mark as paid
+        req.body.payment_status = 'paid';
+      }
       
       // Calculate total amount if not provided
       let calculatedTotal = total_amount;
@@ -248,9 +263,7 @@ exports.createOrder = (req, res) => {
         // Calculate the total including delivery fee only once
         const finalTotal = (subtotal || calculatedTotal) + 
                           (service_fee || 0) + 
-                          (order_type === 'Delivery' ? finalDeliveryFee : 0);
-        
-        // Create order - include all the new fields
+                          (order_type === 'Delivery' ? finalDeliveryFee : 0);        // Create order - include all the new fields
         const orderData = {
           user_id,
           order_type,
@@ -263,8 +276,8 @@ exports.createOrder = (req, res) => {
           delivery_address: order_type === 'Delivery' ? delivery_address : '',
           zone_id: order_type === 'Delivery' ? zone_id : null,  // Add zone_id
           special_instructions: special_instructions || delivery_notes || '',
-          payment_type: payment_method || 'cash',
-          payment_status: 'unpaid'
+          payment_type: payment_method || 'cash', // Using 'card' or 'cash' to match enum
+          payment_status: payment_method === 'card' ? 'paid' : 'unpaid' // Set paid for card payments
         };
         
         console.log('Creating order with data:', orderData);
@@ -332,6 +345,7 @@ exports.createOrder = (req, res) => {
 exports.updateOrderStatus = (req, res) => {
   const orderId = req.params.id;
   const { order_status, delivery_person_id } = req.body;
+  const emailService = require('../utils/emailService');
   
   if (!order_status) {
     return res.status(400).json({ message: 'Order status is required' });
@@ -355,6 +369,26 @@ exports.updateOrderStatus = (req, res) => {
     
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    // Send email notification if status is Confirmed or Cancelled
+    if (['Confirmed', 'Cancelled'].includes(order_status)) {
+      // Get the order details including user information
+      db.query(`
+        SELECT o.*, u.email, u.first_name, u.last_name 
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.user_id
+        WHERE o.order_id = ?`, 
+        [orderId], 
+        async (orderErr, orderResults) => {
+          if (!orderErr && orderResults.length > 0) {
+            const order = orderResults[0];
+            // Send email notification
+            await emailService.sendOrderStatusEmail(order, order_status);
+          } else {
+            console.error('Error fetching order details for email:', orderErr);
+          }
+      });
     }
     
     res.json({

@@ -912,14 +912,13 @@ const ProfilePage = () => {
                     <span className="order-total">Total</span>
                     <span className="order-status">Status</span>
                     <span className="order-actions">Actions</span>
-                  </div>
-                  {orderHistory.map(order => (
+                  </div>                  {orderHistory.map(order => (
                     <div key={order.order_id} className="order-item">
                       <div className="order-id">#{order.order_id}</div>
                       <div className="order-date">{formatDate(order.created_at)}</div>
                       <div className="order-total">{formatPrice(order.total_amount)}</div>
-                      <div className={`order-status status-${order.order_status.toLowerCase().replace(' ', '-')}`}>
-                        {order.order_status}
+                      <div className={`order-status status-${(order.kitchen_status === 'Preparing' ? 'confirmed' : order.order_status.toLowerCase().replace(' ', '-'))}`}>
+                        {order.kitchen_status === 'Preparing' ? 'Confirmed' : order.order_status}
                       </div>
                       <div className="order-actions">
                         <button 
@@ -927,8 +926,7 @@ const ProfilePage = () => {
                           onClick={() => handleViewOrderDetails(order)}
                         >
                           <i className="fas fa-eye"></i> View
-                        </button>
-                        {order.order_status === 'Pending' && (
+                        </button>                        {order.order_status === 'Pending' && order.kitchen_status !== 'Preparing' && (
                           <button 
                             className="cancel-order-btn"
                             onClick={() => handleCancelOrder(order.order_id)}
@@ -955,7 +953,7 @@ const ProfilePage = () => {
                         <div className="order-details-info">
                           <p><strong>Order #:</strong> {selectedOrder.order_id}</p>
                           <p><strong>Date:</strong> {formatDate(selectedOrder.created_at)}</p>
-                          <p><strong>Status:</strong> <span className={`status-${selectedOrder.order_status.toLowerCase().replace(' ', '-')}`}>{selectedOrder.order_status}</span></p>
+                          <p><strong>Status:</strong> <span className={`status-${selectedOrder.kitchen_status === 'Preparing' ? 'confirmed' : selectedOrder.order_status.toLowerCase().replace(' ', '-')}`}>{selectedOrder.kitchen_status === 'Preparing' ? 'Confirmed' : selectedOrder.order_status}</span></p>
                           <p><strong>Type:</strong> {selectedOrder.order_type}</p>
                           
                           {/* Conditional rendering for delivery address */}
@@ -1228,8 +1226,7 @@ const ProfilePage = () => {
                           </button>
                         </>
                       ) : (
-                        <>
-                          {selectedOrder.order_status === 'Pending' && (
+                        <>                          {selectedOrder.order_status === 'Pending' && selectedOrder.kitchen_status !== 'Preparing' && (
                             <button className="edit-order-btn" onClick={handleEditOrder}>
                               <i className="fas fa-edit"></i> Edit Order
                             </button>

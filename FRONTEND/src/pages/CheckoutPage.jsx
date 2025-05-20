@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Footer from '../components/Footer';
-import { getUserProfile, getDeliveryZones } from '../utils/api';
+import { getUserProfile, getDeliveryZones, getAllTables, getAvailableTablesForNow } from '../utils/api';
 import '../styles/CheckoutPage.css';
 import '../styles/restaurantClosed.css';
 
@@ -220,59 +220,72 @@ const CheckoutPage = () => {
     const newTotal = newSubtotal + newServiceFee + deliveryFee;
     setTotal(newTotal);
   }, [cart, deliveryMethod, deliveryFee]);
-
   // Fetch available tables when dine-in is selected
   useEffect(() => {
     if (deliveryMethod === 'dine-in') {
+      console.log('Dine-in selected, fetching available tables...');
       fetchAvailableTables();
     }
-  }, [deliveryMethod]);
-
-  // Function to fetch available tables
+  }, [deliveryMethod]);// Function to fetch available tables
   const fetchAvailableTables = async () => {
     setIsLoadingTables(true);
     try {
-      // Fetch available tables from API
-      const response = await fetch('/api/tables?status=Available&is_active=true');
+      // Use the new utility function to fetch tables available at the current time
+      console.log('Fetching available tables for now...');
+      const tables = await getAvailableTablesForNow();
+      console.log('Fetched available tables for current time:', tables);
       
-      if (response.ok) {
-        const tables = await response.json();
-        setAvailableTables(tables);
-      } else {
-        console.error('Error fetching available tables. Status:', response.status);
-        // Fallback to API endpoint for reservations which might be available
-        try {
-          const currentDateTime = new Date().toISOString();
-          const reservationResponse = await fetch(`/api/reservations/available-tables?dateTime=${currentDateTime}`);
-          
-          if (reservationResponse.ok) {
-            const reservationTables = await reservationResponse.json();
-            setAvailableTables(reservationTables);
-          } else {
-            throw new Error('Both table endpoints failed');
-          }
-        } catch (reservationError) {
-          console.error('Both table API endpoints failed:', reservationError);
-          // Fallback to dummy data if both API calls fail
-          setAvailableTables([
-            { table_no: 1, capacity: 2, status: 'Available' },
-            { table_no: 2, capacity: 4, status: 'Available' },
-            { table_no: 3, capacity: 6, status: 'Available' },
-            { table_no: 4, capacity: 2, status: 'Available' },
-            { table_no: 5, capacity: 4, status: 'Available' }
-          ]);
-        }
-      }
+      // Tables returned from getAvailableTablesForNow are already filtered for availability
+      setAvailableTables(tables);
     } catch (error) {
       console.error('Error fetching available tables:', error);
-      // Fallback to dummy data
-      setAvailableTables([
-        { table_no: 1, capacity: 2, status: 'Available' },
-        { table_no: 2, capacity: 4, status: 'Available' },
-        { table_no: 3, capacity: 6, status: 'Available' },
-        { table_no: 4, capacity: 2, status: 'Available' },
-        { table_no: 5, capacity: 4, status: 'Available' }
-      ]);
+      // Try a direct API call with full URL in case the utility function is having issues
+      try {
+        console.log('Attempting direct API call to fetch tables...');
+        // Use the full URL directly
+        const currentDateTime = new Date().toISOString();
+        const directResponse = await fetch(`http://localhost:5000/api/reservations/available-tables?dateTime=${currentDateTime}`);
+        console.log('Direct API response status:', directResponse.status);
+        
+        if (directResponse.ok) {
+          const tables = await directResponse.json();
+          console.log('Tables from available-tables endpoint:', tables);
+          setAvailableTables(tables);
+        } else {
+          // If direct API call fails, try the regular tables endpoint as fallback
+          console.log('Trying regular tables endpoint as fallback...');
+          const tablesResponse = await fetch('http://localhost:5000/api/reservations/tables');
+          
+          if (tablesResponse.ok) {
+            const allTables = await tablesResponse.json();
+            console.log('All tables from fallback API call:', allTables);
+            
+            // Filter only available and active tables
+            const availableTables = allTables.filter(
+              table => (
+                (table.current_status === 'Available' || table.status === 'Available') && 
+                table.is_active === true
+              )
+            );
+            
+            console.log('Available tables after fallback filtering:', availableTables);
+            setAvailableTables(availableTables);
+          } else {
+            throw new Error('All table endpoints failed');
+          }
+        }
+      } catch (apiError) {
+        console.error('All API attempts failed:', apiError);
+        // Fallback to dummy data
+        console.log('Using dummy table data as fallback');
+        setAvailableTables([
+          { table_no: 1, capacity: 2, status: 'Available' },
+          { table_no: 2, capacity: 4, status: 'Available' },
+          { table_no: 3, capacity: 6, status: 'Available' },
+          { table_no: 4, capacity: 2, status: 'Available' },
+          { table_no: 5, capacity: 4, status: 'Available' }
+        ]);
+      }
     } finally {
       setIsLoadingTables(false);
     }
@@ -481,9 +494,14 @@ const CheckoutPage = () => {
       // Default fee if no zone selected
       setDeliveryFee(50.00);
     }
-    
-    // Clear method-specific errors when changing methods
+      // Clear method-specific fields and errors when changing methods
     if (method === 'pickup') {
+      // Clear table selection when switching to pickup
+      setFormData(prevData => ({
+        ...prevData,
+        tableNo: ''
+      }));
+      
       setFormErrors(prevErrors => {
         const newErrors = {...prevErrors};
         delete newErrors.address;
@@ -494,6 +512,13 @@ const CheckoutPage = () => {
         return newErrors;
       });
     } else if (method === 'dine-in') {
+      // Clear pickup fields when switching to dine-in
+      setFormData(prevData => ({
+        ...prevData,
+        pickupDate: '',
+        pickupTime: ''
+      }));
+      
       setFormErrors(prevErrors => {
         const newErrors = {...prevErrors};
         delete newErrors.address;
@@ -505,7 +530,14 @@ const CheckoutPage = () => {
         return newErrors;
       });
     } else {
-      // Clear pickup and dine-in related errors if switching to delivery
+      // Clear pickup and dine-in related fields when switching to delivery
+      setFormData(prevData => ({
+        ...prevData,
+        pickupDate: '',
+        pickupTime: '',
+        tableNo: ''
+      }));
+      
       setFormErrors(prevErrors => {
         const newErrors = {...prevErrors};
         delete newErrors.pickupDate;
@@ -534,7 +566,6 @@ const CheckoutPage = () => {
         : 'No address provided';
     }
   };
-
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -545,6 +576,37 @@ const CheckoutPage = () => {
       setFormErrors(errors);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
+    }
+    
+    // Additional validation for credit card payments
+    if (formData.paymentMethod === 'credit-card') {
+      // Basic card validation - Luhn algorithm could be added for production
+      const cardNumber = formData.cardNumber.replace(/\s/g, '');
+      const expiry = formData.cardExpiry.split('/');
+      
+      if (cardNumber.length !== 16) {
+        setFormErrors({...errors, cardNumber: 'Card number must be 16 digits'});
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      
+      if (expiry.length !== 2) {
+        setFormErrors({...errors, cardExpiry: 'Invalid expiration date'});
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      
+      // Check if card is expired
+      const currentDate = new Date();
+      const expiryMonth = parseInt(expiry[0], 10);
+      const expiryYear = parseInt(`20${expiry[1]}`, 10);
+      
+      if (expiryYear < currentDate.getFullYear() || 
+          (expiryYear === currentDate.getFullYear() && expiryMonth < currentDate.getMonth() + 1)) {
+        setFormErrors({...errors, cardExpiry: 'Card is expired'});
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
     }
     
     setIsSubmitting(true);
@@ -585,8 +647,14 @@ const CheckoutPage = () => {
         subtotal: parseFloat(subtotal.toFixed(2)),
         service_fee: parseFloat(serviceFee.toFixed(2)),
         delivery_fee: parseFloat(deliveryFee.toFixed(2)),
-        total_amount: parseFloat(total.toFixed(2)),
-        payment_method: formData.paymentMethod === 'credit-card' ? 'Credit Card' : 'Cash',
+        total_amount: parseFloat(total.toFixed(2)),        payment_method: formData.paymentMethod === 'credit-card' ? 'card' : 'cash',
+        // Add card details if paying by credit card
+        card_details: formData.paymentMethod === 'credit-card' ? {
+          name: formData.cardName,
+          // Only send last 4 digits of card for security
+          number: formData.cardNumber ? `xxxx-xxxx-xxxx-${formData.cardNumber.replace(/\s/g, '').slice(-4)}` : '',
+          expiry: formData.cardExpiry
+        } : null,
         delivery_address: deliveryAddressToUse, // Base address
         zone_id: deliveryMethod === 'delivery' ? parseInt(formData.zoneId) : null, // Add zone_id to order
         // Connect both delivery and dine-in instructions to special_instructions field
@@ -1027,30 +1095,51 @@ const CheckoutPage = () => {
                     </div>
                   </div>
                 )}
-                
-                {deliveryMethod === 'dine-in' && (
+                  {deliveryMethod === 'dine-in' && (
                   <div className="checkout-section">
                     <h3>Table Selection</h3>
                     {isLoadingTables ? (
-                      <p>Loading available tables...</p>
+                      <div className="loading-tables">
+                        <div className="loading-spinner small"></div>
+                        <p>Loading available tables...</p>
+                      </div>
                     ) : (
-                      <>
-                        <div className="form-group">
+                      <>                        <div className="form-group">
                           <label htmlFor="tableNo">Select a Table <span className="required">*</span></label>
-                          <select
-                            id="tableNo"
-                            name="tableNo"
-                            value={formData.tableNo}
-                            onChange={handleChange}
-                            className={formErrors.tableNo ? 'error' : ''}
-                          >
-                            <option value="">-- Select a Table --</option>
-                            {availableTables.map(table => (
-                              <option key={table.table_no} value={table.table_no}>
-                                Table {table.table_no} (Seats {table.capacity})
-                              </option>
-                            ))}
-                          </select>
+                          {availableTables && availableTables.length > 0 ? (
+                            <>
+                              <select
+                                id="tableNo"
+                                name="tableNo"
+                                value={formData.tableNo}
+                                onChange={handleChange}
+                                className={formErrors.tableNo ? 'error' : ''}
+                              >
+                                <option value="">-- Select a Table --</option>
+                                {availableTables.map(table => (
+                                  <option key={table.table_no} value={table.table_no}>
+                                    Table {table.table_no} (Seats {table.capacity})
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="table-info-text">
+                                {formData.tableNo && 
+                                  `You've selected Table ${formData.tableNo} for dine-in service. Your food will be served at this table.`
+                                }
+                              </p>
+                            </>
+                          ) : (
+                            <div className="no-tables-message">
+                              <p>No tables are currently available for dine-in. Please try again later or select a different order method.</p>
+                              <button 
+                                type="button"
+                                className="refresh-tables-btn"
+                                onClick={fetchAvailableTables}
+                              >
+                                <i className="fas fa-sync-alt"></i> Refresh Available Tables
+                              </button>
+                            </div>
+                          )}
                           {formErrors.tableNo && <p className="error-message">{formErrors.tableNo}</p>}
                         </div>
                         <div className="form-group">

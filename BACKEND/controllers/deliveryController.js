@@ -173,6 +173,7 @@ exports.updateDeliveryStatus = (req, res) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;
+    const emailService = require('../utils/emailService');
     
     // Validate inputs
     if (!orderId || !status) {
@@ -220,6 +221,37 @@ exports.updateDeliveryStatus = (req, res) => {
       
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: 'Order not found or not a delivery order' });
+      }
+      
+      // If status is "In Transit", send an email notification
+      if (dbStatus === 'In Transit') {
+        // Get the order details including user email
+        const orderQuery = `
+          SELECT o.*, u.email, u.first_name, u.last_name, 
+                 dz.estimated_delivery_time_min
+          FROM orders o
+          LEFT JOIN users u ON o.user_id = u.user_id
+          LEFT JOIN delivery_zones dz ON o.zone_id = dz.zone_id
+          WHERE o.order_id = ?`;
+          
+        db.query(orderQuery, [orderId], async (orderErr, orderResults) => {
+          if (!orderErr && orderResults.length > 0) {
+            const order = orderResults[0];
+            
+            // Calculate estimated delivery time
+            if (order.estimated_delivery_time_min) {
+              const estimatedMinutes = order.estimated_delivery_time_min;
+              const now = new Date();
+              const estimated = new Date(now.getTime() + (estimatedMinutes * 60000));
+              order.estimated_delivery_time = estimated.toLocaleTimeString();
+            }
+            
+            // Send email notification
+            await emailService.sendDeliveryStatusEmail(order);
+          } else {
+            console.error('Error fetching order details for email:', orderErr);
+          }
+        });
       }
       
       res.json({ 

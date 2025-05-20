@@ -813,6 +813,7 @@ exports.updateReservationStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const emailService = require('../utils/emailService');
     
     // Log the received data for debugging
     console.log('Updating reservation status:', {
@@ -833,7 +834,25 @@ exports.updateReservationStatus = async (req, res) => {
       });
     }
     
-    // First check if the status column exists in the reservations table
+    // First, get the reservation details for the email
+    if (['Confirmed', 'Cancelled'].includes(status)) {
+      db.query('SELECT * FROM reservations WHERE reserve_id = ?', [id], (err, results) => {
+        if (!err && results.length > 0) {
+          const reservation = results[0];
+          // Get the user email
+          db.query('SELECT email FROM users WHERE user_id = ?', [reservation.user_id], async (userErr, userResults) => {
+            if (!userErr && userResults.length > 0) {
+              const email = userResults[0].email;
+              reservation.email = email;
+              // Send email notification
+              await emailService.sendReservationStatusEmail(reservation, status);
+            }
+          });
+        }
+      });
+    }
+    
+    // Then check if the status column exists in the reservations table
     db.query('SHOW COLUMNS FROM reservations', (err, columns) => {
       if (err) {
         console.error('Error checking reservation table schema:', err);

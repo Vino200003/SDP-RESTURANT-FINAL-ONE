@@ -291,6 +291,7 @@ exports.updateOrderStatus = async (req, res) => {
   try {
     const orderId = req.params.id;
     const { status } = req.body;
+    const emailService = require('../utils/emailService');
     
     if (!status) {
       return res.status(400).json({ message: 'Status is required' });
@@ -312,6 +313,26 @@ exports.updateOrderStatus = async (req, res) => {
         
         if (result.affectedRows === 0) {
           return res.status(404).json({ message: 'Order not found' });
+        }
+        
+        // Send email notification if status is Confirmed or Cancelled
+        if (['Confirmed', 'Cancelled'].includes(status)) {
+          // Get the order details including user information
+          db.query(`
+            SELECT o.*, u.email, u.first_name, u.last_name 
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            WHERE o.order_id = ?`, 
+            [orderId], 
+            async (orderErr, orderResults) => {
+              if (!orderErr && orderResults.length > 0) {
+                const order = orderResults[0];
+                // Send email notification
+                await emailService.sendOrderStatusEmail(order, status);
+              } else {
+                console.error('Error fetching order details for email:', orderErr);
+              }
+          });
         }
         
         res.json({ message: 'Order status updated successfully' });
